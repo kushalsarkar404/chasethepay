@@ -1,12 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/scan",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/auto-chase",
-      "schedule": "0 * * * *"
-    }
-  ]
-}
+{}
