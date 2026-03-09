@@ -65,6 +65,7 @@ export function DashboardContent({
       return json.invoices ?? [];
     },
     initialData: initialInvoices,
+    refetchInterval: 15 * 60 * 1000, // poll every 15 min (matches cron scan)
   });
 
   const queryClient = useQueryClient();
@@ -77,6 +78,7 @@ export function DashboardContent({
     },
     initialData: analytics,
     enabled: hasStripeConnected,
+    refetchInterval: 15 * 60 * 1000, // poll every 15 min (matches cron scan)
   });
 
   const displayAnalytics = analyticsData ?? analytics;
