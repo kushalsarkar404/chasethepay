@@ -40,7 +40,7 @@ export async function GET(req: Request) {
   const stripe = getStripe();
   const stripeAccount = account.stripe_account_id;
 
-  let invoiceList: { id: string; amount_remaining?: number; status?: string }[] = [];
+  let invoiceList: { id: string; amount_remaining?: number | null; status?: string | null }[] = [];
   try {
     const list = usePlatform
       ? await stripe.invoices.list({ status: "open", limit: 50 })

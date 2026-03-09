@@ -44,7 +44,7 @@ export function RecoveryChart({ data }: RecoveryChartProps) {
               new Intl.NumberFormat("en-US", {
                 style: "currency",
                 currency: "USD",
-              }).format(value ?? 0),
+              }).format(Number(value) || 0),
               "Recovered",
             ]}
           />

@@ -103,7 +103,7 @@ export function DashboardContent({
     const maxCents = amountMax ? Math.round(parseFloat(amountMax) * 100) : null;
     const q = searchQuery.toLowerCase().trim();
 
-    return invoices.filter((inv) => {
+    return invoices.filter((inv: Invoice) => {
       if (cutoff && new Date(inv.due_date) < cutoff) return false;
       if (minCents != null && (inv.amount_remaining ?? 0) < minCents) return false;
       if (maxCents != null && (inv.amount_remaining ?? 0) > maxCents) return false;
@@ -118,7 +118,7 @@ export function DashboardContent({
     const maxCents = amountMax ? Math.round(parseFloat(amountMax) * 100) : null;
     const q = searchQuery.toLowerCase().trim();
 
-    return recoveryHistory.filter((r) => {
+    return recoveryHistory.filter((r: RecoveryItem) => {
       if (cutoff && r.recoveredAt && new Date(r.recoveredAt) < cutoff) return false;
       if (minCents != null && r.amount < minCents) return false;
       if (maxCents != null && r.amount > maxCents) return false;
@@ -157,14 +157,14 @@ export function DashboardContent({
   }, [hasStripeConnected, queryClient]);
 
   const totalRecoveredFiltered =
-    filteredRecoveryHistory.reduce((s, r) => s + r.amount, 0);
+    filteredRecoveryHistory.reduce((s: number, r: RecoveryItem) => s + r.amount, 0);
   const totalRecoveredFormatted = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
   }).format(totalRecoveredFiltered / 100);
 
   const totalAmountOverdue =
-    filteredInvoices.reduce((s, i) => s + (i.amount_remaining ?? 0), 0);
+    filteredInvoices.reduce((s: number, i: Invoice) => s + (i.amount_remaining ?? 0), 0);
   const totalAmountOverdueFormatted = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -505,7 +505,7 @@ export function DashboardContent({
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredRecoveryHistory.map((r) => (
+                    {filteredRecoveryHistory.map((r: RecoveryItem) => (
                       <tr key={r.id} className="border-b border-[var(--border)]/50">
                         <td className="py-3 pr-4 text-[var(--text)]">{r.customerName || "—"}</td>
                         <td className="py-3 pr-4 font-medium text-[var(--green)]">
