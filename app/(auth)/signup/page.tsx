@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,12 +93,7 @@ export default function SignupPage() {
       <div className="relative z-10 w-full max-w-md">
         <div className="card-ctp border-border-bright p-8">
           <div className="mb-8">
-            <Link
-              href="/"
-              className="font-display text-xl font-bold tracking-tight text-[var(--text)]"
-            >
-              ChaseThePay
-            </Link>
+            <Logo href="/" className="text-xl" />
             <p className="mt-1 text-sm text-[var(--muted)]">
               Stop chasing invoices. Let AI chase for you.
             </p>

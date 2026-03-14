@@ -101,5 +101,14 @@ export async function GET() {
     }
   }
 
+  try {
+    const ranAt = new Date().toISOString();
+    await admin.from("cron_status").upsert(
+      { key: "scan", ran_at: ranAt, scanned: totalScanned, synced: totalSynced, updated_at: ranAt },
+      { onConflict: "key" }
+    );
+  } catch {
+    // cron_status table may not exist yet
+  }
   return NextResponse.json({ ok: true, scanned: totalScanned, synced: totalSynced });
 }

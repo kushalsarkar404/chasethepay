@@ -33,7 +33,6 @@ const schema = z.object({
   ai_tone: z.enum(["friendly", "professional", "firm"]),
   chase_frequency: z.enum(["1min", "1day", "3days", "weekly"]),
   max_chases: z.number().int().min(1).max(20),
-  from_email: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -44,10 +43,15 @@ export default function SettingsPage() {
   const [stripeStatus, setStripeStatus] = useState<string | null>(null);
   const [stripeConnected, setStripeConnected] = useState(false);
   const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+  const [plan, setPlan] = useState<"free" | "pro" | "test">("free");
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  const [currentPeriodEnd, setCurrentPeriodEnd] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [disconnectModalOpen, setDisconnectModalOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -56,9 +60,12 @@ export default function SettingsPage() {
       ai_tone: "friendly",
       chase_frequency: "3days",
       max_chases: 5,
-      from_email: "",
     },
   });
+
+  useEffect(() => {
+    track(AnalyticsEvents.Settings_Viewed);
+  }, []);
 
   useEffect(() => {
     const stripe = searchParams.get("stripe");
@@ -74,16 +81,20 @@ export default function SettingsPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then((data) => {
+    Promise.all([
+      fetch("/api/settings").then((r) => r.json()),
+      fetch("/api/billing/subscription").then((r) => r.json()),
+    ])
+      .then(([data, sub]) => {
         if (data.stripeConnected) setStripeConnected(true);
         if (data.stripeAccountId) setStripeAccountId(data.stripeAccountId);
         if (data.sender_name) form.setValue("sender_name", data.sender_name);
         if (data.ai_tone) form.setValue("ai_tone", data.ai_tone);
         if (data.chase_frequency) form.setValue("chase_frequency", data.chase_frequency);
         if (data.max_chases) form.setValue("max_chases", data.max_chases);
-        if (data.from_email) form.setValue("from_email", data.from_email);
+        if (sub.plan) setPlan(sub.plan);
+        setCancelAtPeriodEnd(!!sub.cancelAtPeriodEnd);
+        setCurrentPeriodEnd(sub.currentPeriodEnd ?? null);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -95,10 +106,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          from_email: data.from_email?.trim() ? data.from_email : null,
-        }),
+        body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error("Failed to save");
       track(AnalyticsEvents.Settings_Updated, {
@@ -180,7 +188,7 @@ export default function SettingsPage() {
               Chase preferences
             </h2>
             <div className="mt-6 grid gap-6 sm:grid-cols-2">
-              <div className="space-y-2 sm:col-span-2" title="Name shown at the end of chase emails (e.g. Thank you, Acme Inc)">
+              <div className="space-y-2 sm:col-span-2" title="Name shown in chase emails and in the recipient's inbox">
                 <Label>Sender name</Label>
                 <Input
                   placeholder="Your business"
@@ -188,7 +196,7 @@ export default function SettingsPage() {
                   className="bg-[var(--surface)] border-[var(--border)]"
                 />
                 <p className="text-xs text-[var(--muted2)]">
-                  Used as the sign-off in chase emails (e.g. &quot;Thank you, Sender name&quot;)
+                  Shown in chase emails and as the display name in the recipient&apos;s inbox
                 </p>
               </div>
               <div className="space-y-2" title="Tone of reminder emails: friendly, professional, or firm">
@@ -233,15 +241,6 @@ export default function SettingsPage() {
                   className="bg-[var(--surface)] border-[var(--border)]"
                 />
               </div>
-              <div className="space-y-2 sm:col-span-2" title="Email address chase emails are sent from (default: Resend)">
-                <Label>From email (optional)</Label>
-                <Input
-                  type="email"
-                  placeholder="billing@yourcompany.com"
-                  {...form.register("from_email")}
-                  className="bg-[var(--surface)] border-[var(--border)]"
-                />
-              </div>
             </div>
           </section>
 
@@ -261,24 +260,62 @@ export default function SettingsPage() {
           <h2 className="font-display text-lg font-semibold text-[var(--text)]">
             Billing
           </h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Upgrade to Pro for unlimited chases
-          </p>
-          <Button
-            variant="outline"
-            className="mt-4 border-[var(--border)]"
-            title="Upgrade for unlimited chases per month"
-            onClick={async () => {
-              track(AnalyticsEvents.Billing_CheckoutStarted);
-              const res = await fetch("/api/billing/checkout", {
-                method: "POST",
-              });
-              const data = await res.json();
-              if (data.url) window.location.href = data.url;
-            }}
-          >
-            Upgrade to Pro — $4.99/mo
-          </Button>
+          {plan === "pro" || plan === "test" ? (
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center gap-2 rounded-lg bg-[var(--green-dim)] border border-[var(--green)]/30 px-4 py-3 text-sm text-[var(--green)]">
+                <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Pro — unlimited chases
+              </div>
+              {cancelAtPeriodEnd && currentPeriodEnd ? (
+                <p className="text-sm text-[var(--muted)]">
+                  Your subscription will end on{" "}
+                  {new Date(currentPeriodEnd * 1000).toLocaleDateString(undefined, {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                  . You&apos;ll keep Pro until then.
+                </p>
+              ) : plan === "pro" ? (
+                <>
+                  <p className="text-sm text-[var(--muted)]">
+                    Cancel anytime — you&apos;ll keep Pro until the end of your billing period.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="border-[var(--border)]"
+                    title="Cancel subscription at end of billing period"
+                    onClick={() => setCancelModalOpen(true)}
+                  >
+                    Cancel subscription
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Upgrade to Pro for unlimited chases
+              </p>
+              <Button
+                variant="outline"
+                className="mt-4 border-[var(--border)]"
+                title="Upgrade for unlimited chases per month"
+                onClick={async () => {
+                  track(AnalyticsEvents.Billing_CheckoutStarted);
+                  const res = await fetch("/api/billing/checkout", {
+                    method: "POST",
+                  });
+                  const data = await res.json();
+                  if (data.url) window.location.href = data.url;
+                }}
+              >
+                Upgrade to Pro — $9.99/mo
+              </Button>
+            </>
+          )}
         </section>
 
         {stripeConnected && (
@@ -352,6 +389,59 @@ export default function SettingsPage() {
                 </>
               ) : (
                 "Disconnect Stripe"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
+        <DialogContent className="border-[var(--border)] bg-[var(--bg2)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl text-[var(--text)]">
+              Cancel subscription?
+            </DialogTitle>
+            <DialogDescription className="text-[var(--muted)]">
+              You&apos;ll keep Pro until the end of your billing period. After that, you&apos;ll switch to the free plan with 10 chases per month.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              className="border-[var(--border)]"
+              onClick={() => setCancelModalOpen(false)}
+              disabled={cancelling}
+            >
+              Keep Pro
+            </Button>
+            <Button
+              variant="outline"
+              className="border-[var(--danger)]/50 text-[var(--danger)] hover:bg-[var(--danger)]/10"
+              disabled={cancelling}
+              onClick={async () => {
+                setCancelling(true);
+                try {
+                  const res = await fetch("/api/billing/cancel", { method: "POST" });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error || "Failed to cancel");
+                  track(AnalyticsEvents.Billing_SubscriptionCancelled);
+                  setCancelModalOpen(false);
+                  setCancelAtPeriodEnd(true);
+                  if (data.current_period_end) setCurrentPeriodEnd(data.current_period_end);
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : "Failed to cancel subscription");
+                } finally {
+                  setCancelling(false);
+                }
+              }}
+            >
+              {cancelling ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cancelling…
+                </>
+              ) : (
+                "Cancel subscription"
               )}
             </Button>
           </DialogFooter>

@@ -4,7 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { InvoiceTable } from "@/components/invoice-table";
 import { SuccessModal } from "@/components/success-modal";
+import { SyncStatusCard } from "@/components/sync-status-card";
 import { UpgradeModal } from "@/components/upgrade-modal";
+import { MaxChasesModal } from "@/components/max-chases-modal";
+import { FrequencyNotMetModal } from "@/components/frequency-not-met-modal";
+import { FreeChasesBanner } from "@/components/free-chases-banner";
+import { OnboardingModal, getOnboardingCompleted } from "@/components/onboarding-modal";
 import { StripeConnectButton } from "@/components/stripe-connect-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +60,20 @@ export function DashboardContent({
   const [refreshing, setRefreshing] = useState(false);
   const [chaseModal, setChaseModal] = useState<{ open: boolean; customerName: string } | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [maxChasesModalOpen, setMaxChasesModalOpen] = useState(false);
+  const [maxChasesModalValue, setMaxChasesModalValue] = useState(5);
+  const [frequencyNotMetModalOpen, setFrequencyNotMetModalOpen] = useState(false);
+  const [frequencyNotMetModalValue, setFrequencyNotMetModalValue] = useState("3days");
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings");
+      if (!res.ok) throw new Error("Failed to fetch settings");
+      return res.json();
+    },
+  });
 
   const { data: invoices, isLoading, refetch } = useQuery({
     queryKey: ["invoices"],
@@ -140,6 +159,10 @@ export function DashboardContent({
   };
 
   useEffect(() => {
+    track(AnalyticsEvents.Dashboard_Viewed);
+  }, []);
+
+  useEffect(() => {
     if (!hasStripeConnected) return;
     const supabase = createClient();
     const channel = supabase
@@ -157,6 +180,15 @@ export function DashboardContent({
       supabase.removeChannel(channel);
     };
   }, [hasStripeConnected, queryClient]);
+
+  useEffect(() => {
+    if (settings === undefined || getOnboardingCompleted()) return;
+    const needsSetup =
+      !hasStripeConnected ||
+      !settings?.sender_name ||
+      settings.sender_name === "Your business";
+    if (needsSetup) setOnboardingOpen(true);
+  }, [settings, hasStripeConnected]);
 
   const totalRecoveredFiltered =
     filteredRecoveryHistory.reduce((s: number, r: RecoveryItem) => s + r.amount, 0);
@@ -177,68 +209,105 @@ export function DashboardContent({
 
   if (!hasStripeConnected) {
     return (
-      <div className="p-8">
-        <div className="mx-auto max-w-2xl">
-          <div className="section-label mb-2">Get started</div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-[var(--text)]">
-            Connect your Stripe account
-          </h1>
-          <p className="mt-3 text-[var(--muted)]">
-            ChaseThePay pulls overdue invoices from Stripe and sends AI-crafted
-            email reminders to your customers. Connect once, then we handle the
-            rest.
-          </p>
-          <div className="mt-8 flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)]/50 p-16">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--green-dim)]">
-              <Inbox className="h-8 w-8 text-[var(--green)]" />
-            </div>
-            <p className="mb-6 text-center text-[var(--muted)]">
-              No invoices yet. Connect Stripe to import overdue invoices and
-              start chasing.
+      <>
+        <div className="px-4 py-6 sm:p-6 md:p-8">
+          <div className="mx-auto max-w-2xl">
+            <div className="section-label mb-2">Get started</div>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-[var(--text)]">
+              Connect your Stripe account
+            </h1>
+            <p className="mt-3 text-[var(--muted)]">
+              ChaseThePay pulls overdue invoices from Stripe and sends AI-crafted
+              email reminders to your customers. Connect once, then we handle the
+              rest.
             </p>
-            <StripeConnectButton />
+            <div className="mt-8 flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)]/50 p-8 sm:p-12 md:p-16">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--green-dim)]">
+                <Inbox className="h-8 w-8 text-[var(--green)]" />
+              </div>
+              <p className="mb-6 text-center text-[var(--muted)]">
+                No invoices yet. Connect Stripe to import overdue invoices and
+                start chasing.
+              </p>
+              <StripeConnectButton />
+            </div>
           </div>
         </div>
-      </div>
+
+        <OnboardingModal
+          open={onboardingOpen}
+          onOpenChange={setOnboardingOpen}
+          hasStripeConnected={hasStripeConnected}
+          initialSettings={
+            settings
+              ? {
+                  sender_name: settings.sender_name ?? "Your business",
+                  ai_tone: settings.ai_tone ?? "friendly",
+                  chase_frequency: settings.chase_frequency ?? "3days",
+                  max_chases: settings.max_chases ?? 5,
+                }
+              : null
+          }
+          onComplete={() => {
+            queryClient.invalidateQueries({ queryKey: ["settings"] });
+            queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            queryClient.invalidateQueries({ queryKey: ["analytics"] });
+          }}
+        />
+      </>
     );
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-[var(--text)]">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 md:p-8">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-display text-xl font-bold tracking-tight text-[var(--text)] sm:text-2xl">
             Dashboard
           </h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
+          <p className="mt-1 text-xs text-[var(--muted)] sm:text-sm">
             Overdue invoices and recovery analytics
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-shrink-0 flex-wrap gap-2 sm:w-auto">
           <TooltipWrapper content="Fetch new invoices from Stripe, update payment status, and refresh the dashboard">
           <Button
             variant="brand"
             size="sm"
+            className="w-full sm:w-auto"
             onClick={async () => {
+              track(AnalyticsEvents.Invoices_ScanStarted);
               setRefreshing(true);
               try {
                 const [scanRes, syncRes] = await Promise.all([
                   fetch("/api/invoices/scan", { method: "POST" }),
                   fetch("/api/invoices/sync", { method: "POST" }),
                 ]);
-                const scanData = await scanRes.json();
-                const syncData = await syncRes.json();
+                const scanData = await scanRes.json().catch(() => ({}));
+                const syncData = await syncRes.json().catch(() => ({}));
                 refetch();
                 queryClient.invalidateQueries({ queryKey: ["analytics"] });
-                track(AnalyticsEvents.Dashboard_Refreshed, {
-                  invoices_scanned: scanData.scanned ?? 0,
-                  status_updated: syncData.updated ?? 0,
-                });
+                const scanned = scanData.scanned ?? 0;
+                const updated = syncData.updated ?? 0;
+                const hasScanErrors = (scanData.errors?.length ?? 0) > 0;
+                const scanFailed = !scanRes.ok || hasScanErrors;
+                if (scanFailed) {
+                  track(AnalyticsEvents.Invoices_ScanFailed, {
+                    errors: scanData.errors?.length ?? 0,
+                    status: scanRes.status,
+                  });
+                } else {
+                  track(AnalyticsEvents.Invoices_ScanCompleted, { scanned, status_updated: updated });
+                }
+                track(AnalyticsEvents.Dashboard_Refreshed, { invoices_scanned: scanned, status_updated: updated });
                 setRefreshModal({
                   open: true,
-                  scanned: scanData.scanned ?? 0,
-                  updated: syncData.updated ?? 0,
+                  scanned,
+                  updated,
                 });
+              } catch {
+                track(AnalyticsEvents.Invoices_ScanFailed, { errors: 1, status: 0 });
+                setRefreshModal({ open: true, scanned: 0, updated: 0 });
               } finally {
                 setRefreshing(false);
               }
@@ -252,9 +321,20 @@ export function DashboardContent({
         </div>
       </div>
 
-      <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {hasStripeConnected &&
+        settings?.plan !== "pro" &&
+        settings?.chasesUsedThisMonth !== undefined && (
+          <div className="mb-6">
+            <FreeChasesBanner
+              chasesUsed={settings.chasesUsedThisMonth}
+              onUpgradeClick={() => setUpgradeModalOpen(true)}
+            />
+          </div>
+        )}
+
+      <div className="mb-6 grid gap-3 sm:mb-10 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <TooltipWrapper content="Number of open, overdue invoices ready to chase">
-        <div className="card-ctp p-5">
+        <div className="card-ctp min-w-0 p-4 sm:p-5">
           <p className="text-sm text-[var(--muted)]">Overdue invoices</p>
           <p className="font-display mt-1 text-2xl font-bold text-[var(--text)]">
             {overdueCount}
@@ -265,9 +345,9 @@ export function DashboardContent({
         </div>
         </TooltipWrapper>
         <TooltipWrapper content="Sum of outstanding balances on overdue invoices">
-        <div className="card-ctp p-5">
+        <div className="card-ctp min-w-0 overflow-hidden p-4 sm:p-5">
           <p className="text-sm text-[var(--muted)]">Total amount overdue</p>
-          <p className="font-display mt-1 text-2xl font-bold text-[var(--danger)]">
+          <p className="font-display mt-1 truncate text-xl font-bold text-[var(--danger)] sm:text-2xl">
             {totalAmountOverdueFormatted}
           </p>
           <p className="mt-1 text-xs text-[var(--muted2)]">
@@ -276,9 +356,9 @@ export function DashboardContent({
         </div>
         </TooltipWrapper>
         <TooltipWrapper content="Total amount recovered from invoices we chased (paid after chase)">
-        <div className="card-ctp p-5">
+        <div className="card-ctp min-w-0 overflow-hidden p-4 sm:p-5">
           <p className="text-sm text-[var(--muted)]">Total recovered</p>
-          <p className="font-display mt-1 text-2xl font-bold text-[var(--green)]">
+          <p className="font-display mt-1 truncate text-xl font-bold text-[var(--green)] sm:text-2xl">
             {totalRecoveredFormatted}
           </p>
           <p className="mt-1 text-xs text-[var(--muted2)]">
@@ -287,7 +367,7 @@ export function DashboardContent({
         </div>
         </TooltipWrapper>
         <TooltipWrapper content="Count of invoices paid after we sent chase emails">
-        <div className="card-ctp p-5">
+        <div className="card-ctp min-w-0 p-4 sm:p-5">
           <p className="text-sm text-[var(--muted)]">Invoices recovered</p>
           <p className="font-display mt-1 text-2xl font-bold text-[var(--green)]">
             {recoveredCount}
@@ -299,14 +379,16 @@ export function DashboardContent({
         </TooltipWrapper>
       </div>
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+      <SyncStatusCard />
+
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
         <div className="flex items-center gap-2 text-sm text-[var(--muted)]" title="Filter the data shown in the tables below">
           <Filter className="h-4 w-4 shrink-0" />
           <span>Filters</span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRangePreset)}>
-            <SelectTrigger className="h-8 w-[130px] border-[var(--border)] bg-[var(--surface)] text-sm" title="Show only invoices due or recovered within this period">
+            <SelectTrigger className="h-8 min-w-0 border-[var(--border)] bg-[var(--surface)] text-sm sm:w-[130px]" title="Show only invoices due or recovered within this period">
               <SelectValue placeholder="Date range" />
             </SelectTrigger>
             <SelectContent>
@@ -341,7 +423,7 @@ export function DashboardContent({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             title="Search by customer name"
-            className="h-8 w-48 border-[var(--border)] bg-[var(--surface)] text-sm"
+            className="h-8 min-w-0 flex-1 border-[var(--border)] bg-[var(--surface)] text-sm sm:w-48 sm:flex-initial"
           />
           {hasActiveFilters && (
             <TooltipWrapper content="Remove all filters">
@@ -359,10 +441,10 @@ export function DashboardContent({
         </div>
       </div>
 
-      <div>
+      <div className="min-w-0 overflow-hidden">
         <div
           role="tablist"
-          className="mb-4 flex gap-1 rounded-lg bg-[var(--surface)] p-1 w-fit"
+          className="mb-4 flex w-full gap-1 overflow-x-auto rounded-lg bg-[var(--surface)] p-1 sm:w-fit"
         >
           <button
             role="tab"
@@ -373,7 +455,7 @@ export function DashboardContent({
             }}
             title="View open invoices that need chasing"
             className={cn(
-              "rounded-md px-4 py-2 text-sm font-medium transition-colors",
+              "shrink-0 rounded-md px-3 py-2 text-sm font-medium transition-colors sm:px-4",
               activeTab === "overdue"
                 ? "bg-[var(--green)] text-[#03160c]"
                 : "text-[var(--muted)] hover:text-[var(--text)]"
@@ -390,7 +472,7 @@ export function DashboardContent({
             }}
             title="View invoices paid after we chased them"
             className={cn(
-              "rounded-md px-4 py-2 text-sm font-medium transition-colors",
+              "shrink-0 rounded-md px-3 py-2 text-sm font-medium transition-colors sm:px-4",
               activeTab === "recovery"
                 ? "bg-[var(--green)] text-[#03160c]"
                 : "text-[var(--muted)] hover:text-[var(--text)]"
@@ -425,25 +507,34 @@ export function DashboardContent({
                       className="mt-4"
                       title="Fetch overdue invoices from your Stripe account"
                       onClick={async () => {
+                        track(AnalyticsEvents.Invoices_ScanStarted);
                         setRefreshing(true);
                         try {
                           const [scanRes, syncRes] = await Promise.all([
                             fetch("/api/invoices/scan", { method: "POST" }),
                             fetch("/api/invoices/sync", { method: "POST" }),
                           ]);
-                          const scanData = await scanRes.json();
-                          const syncData = await syncRes.json();
+                          const scanData = await scanRes.json().catch(() => ({}));
+                          const syncData = await syncRes.json().catch(() => ({}));
                           refetch();
                           queryClient.invalidateQueries({ queryKey: ["analytics"] });
-                          track(AnalyticsEvents.Dashboard_Refreshed, {
-                            invoices_scanned: scanData.scanned ?? 0,
-                            status_updated: syncData.updated ?? 0,
-                          });
-                          setRefreshModal({
-                            open: true,
-                            scanned: scanData.scanned ?? 0,
-                            updated: syncData.updated ?? 0,
-                          });
+                          const scanned = scanData.scanned ?? 0;
+                          const updated = syncData.updated ?? 0;
+                          const hasScanErrors = (scanData.errors?.length ?? 0) > 0;
+                          const scanFailed = !scanRes.ok || hasScanErrors;
+                          if (scanFailed) {
+                            track(AnalyticsEvents.Invoices_ScanFailed, {
+                              errors: scanData.errors?.length ?? 0,
+                              status: scanRes.status,
+                            });
+                          } else {
+                            track(AnalyticsEvents.Invoices_ScanCompleted, { scanned, status_updated: updated });
+                          }
+                          track(AnalyticsEvents.Dashboard_Refreshed, { invoices_scanned: scanned, status_updated: updated });
+                          setRefreshModal({ open: true, scanned, updated });
+                        } catch {
+                          track(AnalyticsEvents.Invoices_ScanFailed, { errors: 1, status: 0 });
+                          setRefreshModal({ open: true, scanned: 0, updated: 0 });
                         } finally {
                           setRefreshing(false);
                         }
@@ -458,15 +549,26 @@ export function DashboardContent({
             ) : (
               <InvoiceTable
                 invoices={filteredInvoices}
+                maxChases={settings?.max_chases ?? 5}
+                chaseFrequency={settings?.chase_frequency ?? "3days"}
                 isLoading={isLoading}
                 onChaseSent={(data) => {
                   refetch();
                   queryClient.invalidateQueries({ queryKey: ["analytics"] });
+                  queryClient.invalidateQueries({ queryKey: ["settings"] });
                   if (data?.customerName) {
                     setChaseModal({ open: true, customerName: data.customerName });
                   }
                 }}
                 onFreeLimitReached={() => setUpgradeModalOpen(true)}
+                onMaxChasesReached={(maxChases) => {
+                  setMaxChasesModalValue(maxChases);
+                  setMaxChasesModalOpen(true);
+                }}
+                onFrequencyNotMet={(chaseFrequency) => {
+                  setFrequencyNotMetModalValue(chaseFrequency);
+                  setFrequencyNotMetModalOpen(true);
+                }}
               />
             )}
           </>
@@ -497,7 +599,7 @@ export function DashboardContent({
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="min-w-[500px] w-full text-sm">
                   <thead>
                     <tr className="border-b border-[var(--border)] text-left text-[var(--muted)]">
                       <th className="pb-3 pr-4 pt-4 font-medium" title="Customer or company name">Customer</th>
@@ -558,6 +660,39 @@ export function DashboardContent({
       <UpgradeModal
         open={upgradeModalOpen}
         onOpenChange={setUpgradeModalOpen}
+      />
+
+      <MaxChasesModal
+        open={maxChasesModalOpen}
+        onOpenChange={setMaxChasesModalOpen}
+        maxChases={maxChasesModalValue}
+      />
+
+      <FrequencyNotMetModal
+        open={frequencyNotMetModalOpen}
+        onOpenChange={setFrequencyNotMetModalOpen}
+        chaseFrequency={frequencyNotMetModalValue}
+      />
+
+      <OnboardingModal
+        open={onboardingOpen}
+        onOpenChange={setOnboardingOpen}
+        hasStripeConnected={hasStripeConnected}
+        initialSettings={
+          settings
+            ? {
+                sender_name: settings.sender_name ?? "Your business",
+                ai_tone: settings.ai_tone ?? "friendly",
+                chase_frequency: settings.chase_frequency ?? "3days",
+                max_chases: settings.max_chases ?? 5,
+              }
+            : null
+        }
+        onComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ["settings"] });
+          queryClient.invalidateQueries({ queryKey: ["invoices"] });
+          queryClient.invalidateQueries({ queryKey: ["analytics"] });
+        }}
       />
     </div>
   );

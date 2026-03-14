@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
 import { NextResponse } from "next/server";
 
-const PRO_PRICE_CENTS = 499; // $4.99/mo
+const PRO_PRICE_CENTS = 999; // $9.99/mo
 
 export async function POST() {
   const supabase = await createClient();

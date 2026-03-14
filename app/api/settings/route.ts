@@ -26,16 +26,35 @@ export async function GET() {
   const stripeConnected = (accounts?.length ?? 0) > 0;
   const stripeAccountId = accounts?.[0]?.stripe_account_id ?? null;
 
+  let chasesUsedThisMonth: number | undefined;
+  if (data?.plan !== "pro" && (accounts?.length ?? 0) > 0) {
+    const accountIds = accounts!.map((a) => a.id);
+    const { data: userInvoices } = await supabase
+      .from("invoices")
+      .select("id")
+      .in("account_id", accountIds);
+    const invIds = userInvoices?.map((i) => i.id) ?? [];
+    if (invIds.length > 0) {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      const { count } = await supabase
+        .from("chases")
+        .select("*", { count: "exact", head: true })
+        .gte("sent_at", startOfMonth.toISOString())
+        .in("invoice_id", invIds);
+      chasesUsedThisMonth = count ?? 0;
+    } else {
+      chasesUsedThisMonth = 0;
+    }
+  }
+
   if (error || !data) {
-    const { count } = await supabase
-      .from("settings")
-      .select("*", { count: "exact", head: true });
-    const isInvitedUser = (count ?? 0) < 50;
     const { data: created, error: insertError } = await supabase
       .from("settings")
       .insert({
         user_id: user.id,
-        plan: isInvitedUser ? "test" : "free",
+        plan: "free",
       })
       .select()
       .single();
@@ -45,10 +64,20 @@ export async function GET() {
         { status: 404 }
       );
     }
-    return NextResponse.json({ ...created, stripeConnected, stripeAccountId });
+    return NextResponse.json({
+      ...created,
+      stripeConnected,
+      stripeAccountId,
+      ...(chasesUsedThisMonth !== undefined && { chasesUsedThisMonth }),
+    });
   }
 
-  return NextResponse.json({ ...data, stripeConnected, stripeAccountId });
+  return NextResponse.json({
+    ...data,
+    stripeConnected,
+    stripeAccountId,
+    ...(chasesUsedThisMonth !== undefined && { chasesUsedThisMonth }),
+  });
 }
 
 export async function POST(req: Request) {

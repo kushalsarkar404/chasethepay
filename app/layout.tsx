@@ -19,8 +19,11 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://chasethepay.com"),
+  icons: {
+    icon: "/chasethepay-icon.svg",
+  },
   title: {
-    default: "ChaseThePay — AI-Powered Invoice Chasing",
+    default: "ChaseThePay — Automated Invoice Chasing",
     template: "%s | ChaseThePay",
   },
   description:

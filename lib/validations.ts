@@ -9,5 +9,4 @@ export const settingsUpdateSchema = z.object({
   ai_tone: z.enum(["friendly", "professional", "firm"]).optional(),
   chase_frequency: z.enum(["1min", "1day", "3days", "weekly"]).optional(),
   max_chases: z.number().int().min(1).max(20).optional(),
-  from_email: z.string().email().nullable().optional(),
 });

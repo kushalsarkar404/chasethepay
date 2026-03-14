@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { syncUserMarketingAdmin } from "@/lib/marketing";
+import { trackServer, trackServerRevenue } from "@/lib/analytics-server";
+import { AnalyticsEvents } from "@/lib/analytics-events";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
@@ -30,9 +32,20 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
 
   switch (event.type) {
+    case "checkout.session.completed": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const userId = session.client_reference_id ?? (session.metadata?.user_id as string | undefined);
+      const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
+      if (userId && customerId) {
+        await admin.from("settings").update({ stripe_customer_id: customerId }).eq("user_id", userId);
+        trackServer(userId, AnalyticsEvents.Billing_CheckoutCompleted, { stripe_customer_id: customerId }).catch(() => {});
+      }
+      break;
+    }
     case "invoice.paid": {
       const invoice = event.data.object as Stripe.Invoice;
       const stripeInvoiceId = invoice.id;
+      const amountCents = invoice.amount_paid ?? 0;
       const { data: inv } = await admin
         .from("invoices")
         .update({ recovered_at: new Date().toISOString(), status: "paid" })
@@ -49,6 +62,9 @@ export async function POST(req: Request) {
           syncUserMarketingAdmin(acc.user_id).catch((e) =>
             console.error("[webhooks/stripe] marketing sync:", e)
           );
+          if (amountCents > 0) {
+            trackServerRevenue(acc.user_id, amountCents, { invoice_id: stripeInvoiceId }).catch(() => {});
+          }
         }
       }
       break;
@@ -69,6 +85,10 @@ export async function POST(req: Request) {
           syncUserMarketingAdmin(settings.user_id).catch((e) =>
             console.error("[webhooks/stripe] marketing sync:", e)
           );
+          const evt = event.type === "customer.subscription.deleted"
+            ? AnalyticsEvents.Billing_SubscriptionDeleted
+            : AnalyticsEvents.Billing_SubscriptionUpdated;
+          trackServer(settings.user_id, evt, { plan, status: sub.status }).catch(() => {});
         }
       }
       break;

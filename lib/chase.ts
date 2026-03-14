@@ -43,7 +43,7 @@ export async function executeChase(
 
   const { data: settings } = await admin
     .from("settings")
-    .select("max_chases, chase_frequency, ai_tone, from_email, plan, sender_name")
+    .select("max_chases, chase_frequency, ai_tone, plan, sender_name")
     .eq("user_id", userId)
     .single();
 
@@ -57,9 +57,12 @@ export async function executeChase(
   if (invoice.chase_count >= maxChases) return { ok: false, error: "Max chases reached" };
 
   const lastChased = invoice.last_chased_at ? new Date(invoice.last_chased_at) : null;
-  if (lastChased && cutoff < lastChased) return { ok: false, error: "Frequency not met" };
+  const lastChasedRounded = lastChased
+    ? new Date(Math.floor(lastChased.getTime() / 60000) * 60000)
+    : null;
+  if (lastChasedRounded && cutoff < lastChasedRounded) return { ok: false, error: "Frequency not met" };
 
-  if (settings?.plan === "free") {
+  if (settings?.plan !== "pro") {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
@@ -95,6 +98,7 @@ export async function executeChase(
       daysOverdue,
       tone: autoTone,
       businessName,
+      chaseNumber,
     });
   } catch (err) {
     console.error("[chase] OpenAI error:", err);
@@ -142,13 +146,17 @@ If you've already paid, please disregard this message.
 </body>
 </html>`;
 
-  const fromEmail = settings?.from_email ?? process.env.EMAIL_FROM ?? "noreply@resend.dev";
+  const fromEmail = process.env.EMAIL_FROM ?? "noreply@resend.dev";
+  const senderName = settings?.sender_name?.trim();
+  const fromValue = senderName
+    ? `"${senderName.replace(/"/g, "")}" <${fromEmail}>`
+    : fromEmail;
   const toEmail = options?.emailOverride ?? invoice.customer_email;
 
   try {
     await sendChaseEmail({
       to: toEmail,
-      from: fromEmail,
+      from: fromValue,
       subject: `Reminder: Invoice overdue by ${daysOverdue} days`,
       body: emailBody,
       isHtml: true,

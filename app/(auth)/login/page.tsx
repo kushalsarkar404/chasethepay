@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") ?? "/dashboard";
+  const resetSuccess = searchParams.get("reset") === "success";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,12 +51,7 @@ function LoginForm() {
       <div className="relative z-10 w-full max-w-md">
         <div className="card-ctp border-border-bright p-8">
           <div className="mb-8">
-            <Link
-              href="/"
-              className="font-display text-xl font-bold tracking-tight text-[var(--text)]"
-            >
-              ChaseThePay
-            </Link>
+            <Logo href="/" className="text-xl" />
             <p className="mt-1 text-sm text-[var(--muted)]">
               Stop chasing invoices. Let AI chase for you.
             </p>
@@ -65,6 +62,11 @@ function LoginForm() {
           <p className="mt-2 text-sm text-[var(--muted)]">
             Sign in to your account to continue
           </p>
+          {resetSuccess && (
+            <div className="mt-6 rounded-lg border border-[var(--green)]/30 bg-[var(--green-dim)] px-4 py-3 text-sm text-[var(--green)]">
+              Your password has been updated. Sign in with your new password.
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="mt-8 space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

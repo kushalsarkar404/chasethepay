@@ -44,16 +44,29 @@ function StatusBadge({ status, recoveredAt }: { status: string; recoveredAt: str
 
 interface InvoiceTableProps {
   invoices: Invoice[];
+  maxChases?: number;
+  chaseFrequency?: string;
   onChaseSent?: (data?: { customerName: string }) => void;
   onFreeLimitReached?: () => void;
+  onMaxChasesReached?: (maxChases: number) => void;
+  onFrequencyNotMet?: (chaseFrequency: string) => void;
   isLoading?: boolean;
 }
 
-export function InvoiceTable({ invoices, onChaseSent, onFreeLimitReached, isLoading }: InvoiceTableProps) {
+export function InvoiceTable({
+  invoices,
+  maxChases = 5,
+  chaseFrequency = "3days",
+  onChaseSent,
+  onFreeLimitReached,
+  onMaxChasesReached,
+  onFrequencyNotMet,
+  isLoading,
+}: InvoiceTableProps) {
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-[var(--border)] overflow-hidden">
-        <Table>
+      <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
+        <Table className="min-w-[600px]">
           <TableHeader>
             <TableRow className="border-[var(--border)] hover:bg-transparent">
               <TableHead className="text-[var(--muted)]" title="Customer or company name">Customer</TableHead>
@@ -88,8 +101,8 @@ export function InvoiceTable({ invoices, onChaseSent, onFreeLimitReached, isLoad
   }
 
   return (
-    <div className="rounded-xl border border-[var(--border)] overflow-hidden">
-      <Table>
+    <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
+      <Table className="min-w-[600px]">
           <TableHeader>
             <TableRow className="border-[var(--border)] hover:bg-transparent">
               <TableHead className="text-[var(--muted)] font-medium" title="Customer or company name">Customer</TableHead>
@@ -134,7 +147,15 @@ export function InvoiceTable({ invoices, onChaseSent, onFreeLimitReached, isLoad
               </TableCell>
               <TableCell>
                 {!inv.recovered_at && inv.status === "open" && inv.customer_email && (
-                  <ChaseButton invoice={inv} onSent={onChaseSent} onFreeLimitReached={onFreeLimitReached} />
+                  <ChaseButton
+                    invoice={inv}
+                    maxChases={maxChases}
+                    chaseFrequency={chaseFrequency}
+                    onSent={onChaseSent}
+                    onFreeLimitReached={onFreeLimitReached}
+                    onMaxChasesReached={onMaxChasesReached}
+                    onFrequencyNotMet={onFrequencyNotMet}
+                  />
                 )}
               </TableCell>
             </TableRow>

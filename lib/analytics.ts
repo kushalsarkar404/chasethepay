@@ -3,8 +3,7 @@
 import mixpanel from "mixpanel-browser";
 import { AnalyticsEvents } from "./analytics-events";
 
-const MIXPANEL_TOKEN =
-  process.env.NEXT_PUBLIC_MIXPANEL_TOKEN ?? "a86ef405085547c1dfefd2337b2bba47";
+const MIXPANEL_TOKEN = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN;
 
 const isEnabled = typeof window !== "undefined" && MIXPANEL_TOKEN;
 

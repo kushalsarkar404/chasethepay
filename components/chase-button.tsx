@@ -9,11 +9,23 @@ import { track, AnalyticsEvents } from "@/lib/analytics";
 
 interface ChaseButtonProps {
   invoice: Invoice;
+  maxChases: number;
+  chaseFrequency: string;
   onSent?: (data?: { customerName: string }) => void;
   onFreeLimitReached?: () => void;
+  onMaxChasesReached?: (maxChases: number) => void;
+  onFrequencyNotMet?: (chaseFrequency: string) => void;
 }
 
-export function ChaseButton({ invoice, onSent, onFreeLimitReached }: ChaseButtonProps) {
+export function ChaseButton({
+  invoice,
+  maxChases,
+  chaseFrequency,
+  onSent,
+  onFreeLimitReached,
+  onMaxChasesReached,
+  onFrequencyNotMet,
+}: ChaseButtonProps) {
   const [loading, setLoading] = useState(false);
 
   async function handleClick() {
@@ -29,6 +41,17 @@ export function ChaseButton({ invoice, onSent, onFreeLimitReached }: ChaseButton
         if (data?.error === "FREE_LIMIT_REACHED" && onFreeLimitReached) {
           track(AnalyticsEvents.Chase_FreeLimitReached);
           onFreeLimitReached();
+          return;
+        }
+        if (
+          (data?.error === "Max chases reached" || data?.error === "max_chases_reached") &&
+          onMaxChasesReached
+        ) {
+          onMaxChasesReached(maxChases);
+          return;
+        }
+        if (data?.error === "Frequency not met" && onFrequencyNotMet) {
+          onFrequencyNotMet(chaseFrequency);
           return;
         }
         throw new Error(data?.message ?? data?.error ?? "Failed to send chase");

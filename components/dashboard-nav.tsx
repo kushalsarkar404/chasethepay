@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Mail, Settings, LogOut, HelpCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/sent-emails", label: "Sent emails", icon: Mail },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -40,7 +41,14 @@ export function DashboardNav() {
           </Link>
         );
       })}
-      <div className="mt-auto border-t border-[var(--border)] pt-4">
+      <div className="mt-auto border-t border-[var(--border)] pt-4 space-y-1">
+        <a
+          href="mailto:support@chasethepay.com"
+          className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-[var(--muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+        >
+          <HelpCircle className="h-4 w-4 shrink-0" />
+          Contact support
+        </a>
         <button
           type="button"
           onClick={handleSignOut}

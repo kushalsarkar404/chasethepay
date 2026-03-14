@@ -59,7 +59,7 @@ export function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) {
             Maybe later
           </Button>
           <Button variant="brand" onClick={handleUpgrade}>
-            Upgrade — $4.99/mo
+            Upgrade — $9.99/mo
           </Button>
         </DialogFooter>
       </DialogContent>

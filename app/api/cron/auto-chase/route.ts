@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { executeChase } from "@/lib/chase";
+import { trackServer } from "@/lib/analytics-server";
+import { AnalyticsEvents } from "@/lib/analytics-events";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { subDays, subMinutes } from "date-fns";
@@ -65,9 +67,12 @@ export async function GET() {
       if (inv.chase_count >= maxChases) continue;
 
       const lastChased = inv.last_chased_at ? new Date(inv.last_chased_at) : null;
-      if (lastChased && cutoff < lastChased) continue;
+      const lastChasedRounded = lastChased
+        ? new Date(Math.floor(lastChased.getTime() / 60000) * 60000)
+        : null;
+      if (lastChasedRounded && cutoff < lastChasedRounded) continue;
 
-      if (settings?.plan === "free") {
+      if (settings?.plan !== "pro") {
         const { data: userAccounts } = await admin
           .from("accounts")
           .select("id")
@@ -89,9 +94,21 @@ export async function GET() {
       }
 
       const result = await executeChase(admin, inv.id, account.user_id);
-      if (result.ok) sent++;
+      if (result.ok) {
+        sent++;
+        trackServer(account.user_id, AnalyticsEvents.Chase_Sent_Auto, { invoice_id: inv.id }).catch(() => {});
+      }
     }
   }
 
+  try {
+    const ranAt = new Date().toISOString();
+    await admin.from("cron_status").upsert(
+      { key: "auto_chase", ran_at: ranAt, sent, updated_at: ranAt },
+      { onConflict: "key" }
+    );
+  } catch {
+    // cron_status table may not exist yet
+  }
   return NextResponse.json({ ok: true, sent });
 }

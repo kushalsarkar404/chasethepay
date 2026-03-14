@@ -18,15 +18,23 @@ function templateChaseMessage({
   amountDollars,
   daysOverdue,
   businessName,
+  chaseNumber,
 }: {
   customerName: string;
   amountDollars: number;
   daysOverdue: number;
   businessName: string;
+  chaseNumber: number;
 }): string {
+  const urgency =
+    chaseNumber === 1
+      ? "This is a friendly reminder"
+      : chaseNumber === 2
+        ? "This is a follow-up reminder"
+        : "We've reached out several times";
   return `Hi ${customerName},
 
-This is a friendly reminder that your invoice of $${amountDollars.toFixed(2)} is now ${daysOverdue} day${daysOverdue === 1 ? "" : "s"} overdue.
+${urgency} that your invoice of $${amountDollars.toFixed(2)} is now ${daysOverdue} day${daysOverdue === 1 ? "" : "s"} overdue.
 
 Please arrange payment at your earliest convenience. If you've already paid, please disregard this message.
 
@@ -40,12 +48,14 @@ export async function generateChaseMessage({
   daysOverdue,
   tone,
   businessName = "your business",
+  chaseNumber = 1,
 }: {
   customerName: string;
   amountDollars: number;
   daysOverdue: number;
   tone: "friendly" | "professional" | "firm";
   businessName?: string;
+  chaseNumber?: number;
 }): Promise<string> {
   if (process.env.DEV_SKIP_OPENAI === "true") {
     return templateChaseMessage({
@@ -53,6 +63,7 @@ export async function generateChaseMessage({
       amountDollars,
       daysOverdue,
       businessName,
+      chaseNumber,
     });
   }
 
@@ -65,6 +76,13 @@ export async function generateChaseMessage({
       "Polite but direct. Clear about the amount and due date. Professional tone.",
     firm: "Firm and direct. Emphasize the overdue status. Request immediate payment.",
   };
+
+  const chaseContext =
+    chaseNumber === 1
+      ? "This is the first reminder."
+      : chaseNumber === 2
+        ? "This is the second reminder—add slight urgency."
+        : `This is reminder #${chaseNumber}. Add subtle but increasing urgency that we've reached out multiple times, without being aggressive or threatening.`;
 
   const response = await client.chat.completions.create({
     model: "gpt-4o-mini",
@@ -80,7 +98,8 @@ Rules:
 - End with a clear call to action (pay now)
 - Sign off with the exact Business name provided (e.g. "Thank you,\\nAcme Inc")
 - Do NOT use aggressive or threatening language
-- Use HTML-friendly formatting (plain text, line breaks with \\n)`,
+- Use HTML-friendly formatting (plain text, line breaks with \\n)
+- Match the sense of urgency to the chase number: more reminders = subtly firmer, but always professional`,
       },
       {
         role: "user",
@@ -90,6 +109,7 @@ Rules:
 - Days overdue: ${daysOverdue}
 - Tone: ${tone}
 - Business: ${businessName}
+- Chase context: ${chaseContext}
 
 Return ONLY the email body, no subject line.`,
       },
