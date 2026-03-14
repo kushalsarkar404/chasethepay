@@ -126,6 +126,7 @@ export interface Database {
           chase_frequency: ChaseFrequency;
           max_chases: number;
           from_email: string | null;
+          reply_to_email: string | null;
           plan: Plan;
           stripe_customer_id: string | null;
           created_at: string;
@@ -138,6 +139,7 @@ export interface Database {
           chase_frequency?: ChaseFrequency;
           max_chases?: number;
           from_email?: string | null;
+          reply_to_email?: string | null;
           plan?: Plan;
           stripe_customer_id?: string | null;
           created_at?: string;

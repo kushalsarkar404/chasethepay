@@ -203,7 +203,8 @@ Apply with `supabase db push` (or via dashboard). Order:
 
 1. User lands on dashboard; if no Stripe account, sees “Connect Stripe”
 2. Click Connect → `POST /api/accounts/connect` → redirect to Stripe OAuth
-3. Stripe redirects to `/api/accounts/callback?code=...&state=user_id`
+3. Stripe redirects to `/api/accounts/callback?code=...&state=<signed-token>`
+   - `state` is a signed token (HMAC, 10 min expiry); `CRON_SECRET` is used for signing to prevent account-linking attacks.
 4. Callback stores account, syncs `user_marketing`, redirects to `/settings?stripe=success`
 5. User configures `sender_name`, `chase_frequency`, `max_chases` (sender name is used in chase emails and as the display name in the recipient's inbox)
 

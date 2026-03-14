@@ -1,3 +1,4 @@
+import { verifyConnectState } from "@/lib/connect-state";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { syncUserMarketingAdmin } from "@/lib/marketing";
@@ -6,7 +7,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
-  const state = searchParams.get("state"); // user_id
+  const stateRaw = searchParams.get("state");
   const errorParam = searchParams.get("error");
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -15,7 +16,12 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${appUrl}/settings?stripe=error`);
   }
 
-  if (!code || !state) {
+  if (!code || !stateRaw) {
+    return NextResponse.redirect(`${appUrl}/settings?stripe=error`);
+  }
+
+  const userId = verifyConnectState(stateRaw);
+  if (!userId) {
     return NextResponse.redirect(`${appUrl}/settings?stripe=error`);
   }
 
@@ -46,7 +52,7 @@ export async function GET(request: Request) {
     .from("accounts")
     .upsert(
       {
-        user_id: state,
+        user_id: userId,
         stripe_account_id: accountId,
         integration_type: "stripe",
         connected_at: new Date().toISOString(),
@@ -62,7 +68,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${appUrl}/settings?stripe=error`);
   }
 
-  syncUserMarketingAdmin(state).catch((e) =>
+  syncUserMarketingAdmin(userId).catch((e) =>
     console.error("[accounts/callback] marketing sync:", e)
   );
 

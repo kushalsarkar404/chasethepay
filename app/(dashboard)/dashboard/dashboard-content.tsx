@@ -245,6 +245,7 @@ export function DashboardContent({
                   ai_tone: settings.ai_tone ?? "friendly",
                   chase_frequency: settings.chase_frequency ?? "3days",
                   max_chases: settings.max_chases ?? 5,
+                  reply_to_email: settings.reply_to_email ?? "",
                 }
               : null
           }
@@ -685,6 +686,7 @@ export function DashboardContent({
                 ai_tone: settings.ai_tone ?? "friendly",
                 chase_frequency: settings.chase_frequency ?? "3days",
                 max_chases: settings.max_chases ?? 5,
+                reply_to_email: settings.reply_to_email ?? "",
               }
             : null
         }

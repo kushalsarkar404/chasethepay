@@ -1,5 +1,5 @@
+import { signConnectState } from "@/lib/connect-state";
 import { createClient } from "@/lib/supabase/server";
-import { getStripe } from "@/lib/stripe";
 import { NextResponse } from "next/server";
 
 export async function POST() {
@@ -23,7 +23,8 @@ export async function POST() {
   }
 
   const redirectUri = `${appUrl}/api/accounts/callback`;
-  const connectUrl = `https://connect.stripe.com/oauth/authorize?response_type=code&client_id=${clientId}&scope=read_write&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(user.id)}`;
+  const state = signConnectState(user.id);
+  const connectUrl = `https://connect.stripe.com/oauth/authorize?response_type=code&client_id=${clientId}&scope=read_write&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}`;
 
   return NextResponse.json({ url: connectUrl });
 }

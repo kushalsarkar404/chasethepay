@@ -9,4 +9,10 @@ export const settingsUpdateSchema = z.object({
   ai_tone: z.enum(["friendly", "professional", "firm"]).optional(),
   chase_frequency: z.enum(["1min", "1day", "3days", "weekly"]).optional(),
   max_chases: z.number().int().min(1).max(20).optional(),
+  reply_to_email: z
+    .preprocess(
+      (v) => (v === "" || v === null || v === undefined ? null : v),
+      z.union([z.string().email("Invalid email").max(255), z.null()])
+    )
+    .optional(),
 });

@@ -43,6 +43,7 @@ interface OnboardingModalProps {
     ai_tone: string;
     chase_frequency: string;
     max_chases: number;
+    reply_to_email?: string;
   } | null;
   onComplete: () => void;
 }
@@ -70,6 +71,7 @@ export function OnboardingModal({
   const [aiTone, setAiTone] = useState(initialSettings?.ai_tone ?? "friendly");
   const [chaseFrequency, setChaseFrequency] = useState(initialSettings?.chase_frequency ?? "3days");
   const [maxChases, setMaxChases] = useState(initialSettings?.max_chases ?? 5);
+  const [replyToEmail, setReplyToEmail] = useState(initialSettings?.reply_to_email ?? "");
   const [saving, setSaving] = useState(false);
   const allowCloseRef = useRef(false);
 
@@ -83,6 +85,7 @@ export function OnboardingModal({
       setAiTone(initialSettings.ai_tone || "friendly");
       setChaseFrequency(initialSettings.chase_frequency || "3days");
       setMaxChases(initialSettings.max_chases ?? 5);
+      setReplyToEmail(initialSettings.reply_to_email ?? "");
     }
   }, [initialSettings]);
 
@@ -103,6 +106,7 @@ export function OnboardingModal({
           ai_tone: aiTone,
           chase_frequency: chaseFrequency,
           max_chases: maxChases,
+          reply_to_email: replyToEmail.trim() || null,
         }),
       });
       if (!res.ok) throw new Error("Failed to save");
@@ -277,6 +281,20 @@ export function OnboardingModal({
                 />
                 <p className="text-xs text-[var(--muted)]">
                   Stop after this many reminders per invoice
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reply_to_email">Reply-to email</Label>
+                <Input
+                  id="reply_to_email"
+                  type="email"
+                  placeholder="billing@yourcompany.com"
+                  value={replyToEmail}
+                  onChange={(e) => setReplyToEmail(e.target.value)}
+                  className="bg-[var(--surface)] border-[var(--border)]"
+                />
+                <p className="text-xs text-[var(--muted)]">
+                  Where customers&apos; replies to reminders go (optional)
                 </p>
               </div>
             </div>

@@ -43,7 +43,7 @@ export async function executeChase(
 
   const { data: settings } = await admin
     .from("settings")
-    .select("max_chases, chase_frequency, ai_tone, plan, sender_name")
+    .select("max_chases, chase_frequency, ai_tone, plan, sender_name, reply_to_email")
     .eq("user_id", userId)
     .single();
 
@@ -153,6 +153,7 @@ If you've already paid, please disregard this message.
     : fromEmail;
   const toEmail = options?.emailOverride ?? invoice.customer_email;
 
+  const replyTo = settings?.reply_to_email?.trim() || undefined;
   try {
     await sendChaseEmail({
       to: toEmail,
@@ -160,6 +161,7 @@ If you've already paid, please disregard this message.
       subject: `Reminder: Invoice overdue by ${daysOverdue} days`,
       body: emailBody,
       isHtml: true,
+      replyTo,
     });
   } catch (err) {
     console.error("[chase] Resend error:", err);

@@ -33,6 +33,7 @@ const schema = z.object({
   ai_tone: z.enum(["friendly", "professional", "firm"]),
   chase_frequency: z.enum(["1min", "1day", "3days", "weekly"]),
   max_chases: z.number().int().min(1).max(20),
+  reply_to_email: z.union([z.string().email("Invalid email").max(255), z.literal("")]).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -60,6 +61,7 @@ export default function SettingsPage() {
       ai_tone: "friendly",
       chase_frequency: "3days",
       max_chases: 5,
+      reply_to_email: "",
     },
   });
 
@@ -92,6 +94,7 @@ export default function SettingsPage() {
         if (data.ai_tone) form.setValue("ai_tone", data.ai_tone);
         if (data.chase_frequency) form.setValue("chase_frequency", data.chase_frequency);
         if (data.max_chases) form.setValue("max_chases", data.max_chases);
+        form.setValue("reply_to_email", data.reply_to_email ?? "");
         if (sub.plan) setPlan(sub.plan);
         setCancelAtPeriodEnd(!!sub.cancelAtPeriodEnd);
         setCurrentPeriodEnd(sub.currentPeriodEnd ?? null);
@@ -197,6 +200,18 @@ export default function SettingsPage() {
                 />
                 <p className="text-xs text-[var(--muted2)]">
                   Shown in chase emails and as the display name in the recipient&apos;s inbox
+                </p>
+              </div>
+              <div className="space-y-2 sm:col-span-2" title="Where customer replies to chase emails go">
+                <Label>Reply-to email</Label>
+                <Input
+                  type="email"
+                  placeholder="billing@yourcompany.com"
+                  {...form.register("reply_to_email")}
+                  className="bg-[var(--surface)] border-[var(--border)]"
+                />
+                <p className="text-xs text-[var(--muted2)]">
+                  Where customers&apos; replies to reminders go. Leave empty to use the default sender.
                 </p>
               </div>
               <div className="space-y-2" title="Tone of reminder emails: friendly, professional, or firm">
