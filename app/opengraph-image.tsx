@@ -15,7 +15,7 @@ export default function Image() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(180deg, #06080f 0%, #0a0e1a 50%, #06080f 100%)",
+          background: "linear-gradient(180deg, #ffffff 0%, #f9fafb 100%)",
         }}
       >
         <div
@@ -23,7 +23,7 @@ export default function Image() {
             display: "flex",
             fontSize: 72,
             fontWeight: 800,
-            color: "#e4e8f0",
+            color: "#111827",
             letterSpacing: "-0.02em",
           }}
         >
@@ -33,7 +33,7 @@ export default function Image() {
           style={{
             marginTop: 16,
             fontSize: 36,
-            color: "#10e898",
+            color: "#2563eb",
             fontWeight: 700,
           }}
         >
@@ -43,7 +43,7 @@ export default function Image() {
           style={{
             marginTop: 24,
             fontSize: 24,
-            color: "rgba(228, 232, 240, 0.6)",
+            color: "#6b7280",
           }}
         >
           Connect Stripe. Get paid without the awkward follow-ups.

@@ -20,6 +20,7 @@ export async function sendChaseEmail({
   from,
   replyTo,
   isHtml = false,
+  tags,
 }: {
   to: string;
   subject: string;
@@ -27,6 +28,7 @@ export async function sendChaseEmail({
   from: string;
   replyTo?: string;
   isHtml?: boolean;
+  tags?: { name: string; value: string }[];
 }) {
   const client = getResend();
   const html = isHtml ? body : body.replace(/\n/g, "<br>");
@@ -36,6 +38,7 @@ export async function sendChaseEmail({
     replyTo: replyTo ?? undefined,
     subject,
     html,
+    tags: tags ?? undefined,
   });
 
   if (error) {

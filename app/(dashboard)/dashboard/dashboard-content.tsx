@@ -175,6 +175,13 @@ export function DashboardContent({
           queryClient.invalidateQueries({ queryKey: ["analytics"] });
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chases" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["invoices"] });
+        }
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -458,7 +465,7 @@ export function DashboardContent({
             className={cn(
               "shrink-0 rounded-md px-3 py-2 text-sm font-medium transition-colors sm:px-4",
               activeTab === "overdue"
-                ? "bg-[var(--green)] text-[#03160c]"
+                ? "bg-[var(--primary)] text-white"
                 : "text-[var(--muted)] hover:text-[var(--text)]"
             )}
           >
@@ -475,7 +482,7 @@ export function DashboardContent({
             className={cn(
               "shrink-0 rounded-md px-3 py-2 text-sm font-medium transition-colors sm:px-4",
               activeTab === "recovery"
-                ? "bg-[var(--green)] text-[#03160c]"
+                ? "bg-[var(--primary)] text-white"
                 : "text-[var(--muted)] hover:text-[var(--text)]"
             )}
           >

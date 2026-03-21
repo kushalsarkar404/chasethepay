@@ -4,33 +4,39 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ChaseThePay Design System */
+/* ChaseThePay Design System — Light theme */
 :root {
   /* Backgrounds */
-  --bg: #06080f;
-  --bg2: #080c16;
-  --surface: rgba(255, 255, 255, 0.04);
-  --surface-hover: rgba(255, 255, 255, 0.07);
+  --bg: #ffffff;
+  --bg2: #f9fafb;
+  --surface: rgba(0, 0, 0, 0.02);
+  --surface-hover: rgba(0, 0, 0, 0.04);
 
   /* Borders */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-bright: rgba(255, 255, 255, 0.15);
+  --border: #e5e7eb;
+  --border-bright: #d1d5db;
 
   /* Text */
-  --text: #e4e8f0;
-  --muted: rgba(228, 232, 240, 0.45);
-  --muted2: rgba(228, 232, 240, 0.25);
+  --text: #111827;
+  --muted: #6b7280;
+  --muted2: #9ca3af;
 
-  /* Brand accent — money green */
-  --green: #10e898;
-  --green-dim: rgba(16, 232, 152, 0.12);
-  --green-glow: rgba(16, 232, 152, 0.35);
+  /* Primary — positive blue (subtle contrast on light) */
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-dim: rgba(37, 99, 235, 0.12);
+  --primary-glow: rgba(37, 99, 235, 0.25);
+
+  /* Success (paid, recovered) */
+  --green: #059669;
+  --green-dim: rgba(5, 150, 105, 0.12);
+  --green-glow: rgba(5, 150, 105, 0.2);
 
   /* Supporting */
-  --blue: #3b7eff;
-  --blue-dim: rgba(59, 126, 255, 0.12);
-  --danger: #ff5a5a;
-  --warn: #ffb347;
+  --blue: #2563eb;
+  --blue-dim: rgba(37, 99, 235, 0.12);
+  --danger: #dc2626;
+  --warn: #d97706;
 
   /* shadcn compat */
   --radius: 0.75rem;
@@ -38,10 +44,9 @@
   --foreground: var(--text);
   --card: var(--bg2);
   --card-foreground: var(--text);
-  --popover: var(--bg2);
+  --popover: var(--bg);
   --popover-foreground: var(--text);
-  --primary: var(--green);
-  --primary-foreground: #03160c;
+  --primary-foreground: #ffffff;
   --secondary: var(--surface);
   --secondary-foreground: var(--text);
   --muted-foreground: var(--muted);
@@ -49,21 +54,21 @@
   --accent-foreground: var(--text);
   --destructive: var(--danger);
   --input: var(--border);
-  --ring: var(--green);
+  --ring: var(--primary);
   --border-color: var(--border);
-  --chart-1: var(--green);
+  --chart-1: var(--primary);
   --chart-2: var(--blue);
   --chart-3: var(--warn);
-  --chart-4: #10e898;
-  --chart-5: #3b7eff;
+  --chart-4: var(--green);
+  --chart-5: #3b82f6;
   --sidebar: var(--bg2);
   --sidebar-foreground: var(--text);
-  --sidebar-primary: var(--green);
-  --sidebar-primary-foreground: #03160c;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: var(--surface);
   --sidebar-accent-foreground: var(--text);
   --sidebar-border: var(--border);
-  --sidebar-ring: var(--green);
+  --sidebar-ring: var(--primary);
 }
 
 @theme inline {
@@ -108,58 +113,67 @@
 
 /* Component patterns */
 .btn-primary {
-  background: var(--green);
-  color: #03160c;
+  background: var(--primary);
+  color: var(--primary-foreground);
   font-weight: 600;
   padding: 12px 28px;
   border-radius: 12px;
   border: none;
-  box-shadow: 0 0 30px rgba(16, 232, 152, 0.25);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
   transition: all 0.25s;
 }
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 50px rgba(16, 232, 152, 0.4);
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .btn-ghost {
   background: transparent;
   border: 1px solid var(--border-bright);
   color: var(--text);
-  backdrop-filter: blur(8px);
 }
 
 .card-ctp {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 16px;
   transition: all 0.3s;
 }
 .card-ctp:hover {
-  border-color: rgba(16, 232, 152, 0.2);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.1);
 }
 
 /* Status badges */
 .badge-paid {
-  background: rgba(16, 232, 152, 0.12);
-  color: #10e898;
+  background: var(--green-dim);
+  color: var(--green);
 }
 .badge-sent {
-  background: rgba(59, 126, 255, 0.12);
-  color: #7aa8ff;
+  background: var(--blue-dim);
+  color: #2563eb;
 }
 .badge-overdue {
-  background: rgba(255, 90, 90, 0.12);
-  color: #ff8080;
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
 }
 .badge-pending {
-  background: rgba(255, 179, 71, 0.12);
-  color: #ffb347;
+  background: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+}
+.badge-opened {
+  background: rgba(147, 51, 234, 0.12);
+  color: #7c3aed;
+}
+.badge-clicked {
+  background: var(--blue-dim);
+  color: #2563eb;
 }
 
 /* Section pattern */
 .section-label {
-  color: var(--green);
+  color: var(--primary);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -174,33 +188,13 @@
   font-weight: 300;
 }
 
-/* Hero orb */
-.hero-orb {
-  position: absolute;
-  bottom: -20%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 900px;
-  height: 900px;
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse at 50% 30%,
-    rgba(16, 232, 152, 0.18) 0%,
-    rgba(16, 232, 152, 0.08) 25%,
-    rgba(59, 126, 255, 0.06) 50%,
-    transparent 70%
-  );
-  filter: blur(40px);
-  pointer-events: none;
-}
-
-/* Grain overlay */
+/* Grain overlay — very subtle on light */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-  opacity: 0.6;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+  opacity: 0.5;
   z-index: 1000;
   pointer-events: none;
 }
@@ -217,9 +211,9 @@ body::before {
 .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.06) 25%,
-    rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.06) 75%
+    rgba(0, 0, 0, 0.04) 25%,
+    rgba(0, 0, 0, 0.08) 50%,
+    rgba(0, 0, 0, 0.04) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
@@ -257,6 +251,67 @@ body::before {
 .night-birds-slow { animation: night-birds-slow 18s ease-in-out infinite 3s; }
 .night-birds-slower { animation: night-birds-slower 22s ease-in-out infinite 5s; }
 .night-moon-glow { animation: night-moon-glow 6s ease-in-out infinite; }
+
+/* Landing page — light theme (RAREBLOCKS style) */
+.landing-page {
+  --landing-bg: #ffffff;
+  --landing-text: #111827;
+  --landing-muted: #6b7280;
+  --landing-muted2: #9ca3af;
+  --landing-border: #e5e7eb;
+  --landing-surface: #f9fafb;
+}
+.landing-page {
+  background: var(--landing-bg);
+  color: var(--landing-text);
+}
+.landing-page .landing-gradient-text {
+  background: linear-gradient(135deg, #3b82f6 0%, #ec4899 50%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.landing-page .landing-btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
+}
+.landing-page .landing-btn-primary:hover {
+  background: var(--primary-hover);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+.landing-page .landing-btn-outline {
+  background: white;
+  color: #111827;
+  border: 2px solid #111827;
+}
+.landing-page .landing-btn-outline:hover {
+  background: #f9fafb;
+}
+.landing-page .landing-btn-glow {
+  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.35);
+}
+.landing-page .landing-step-card {
+  background: white;
+  border: 1px solid var(--landing-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.landing-page .landing-step-card-featured {
+  box-shadow: 0 0 60px rgba(139, 92, 246, 0.15),
+              0 0 40px rgba(236, 72, 153, 0.1),
+              0 0 30px rgba(59, 130, 246, 0.1);
+}
+.landing-page .landing-dashboard-wrap {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+.landing-page .landing-logo-accent {
+  color: var(--primary);
+}
 
 @layer base {
   * {

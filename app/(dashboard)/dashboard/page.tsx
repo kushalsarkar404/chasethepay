@@ -44,7 +44,7 @@ async function fetchInvoices(
   supabase: Awaited<ReturnType<typeof createClient>>,
   accountIds: string[]
 ) {
-  const { data } = await supabase
+  const { data: invoices } = await supabase
     .from("invoices")
     .select("*")
     .in("account_id", accountIds)
@@ -52,7 +52,27 @@ async function fetchInvoices(
     .gt("amount_remaining", 0)
     .order("due_date", { ascending: true });
 
-  return data ?? [];
+  const invoiceList = invoices ?? [];
+  if (invoiceList.length === 0) return [];
+
+  const invoiceIds = invoiceList.map((inv) => inv.id);
+  const { data: chases } = await supabase
+    .from("chases")
+    .select("invoice_id, sent_at, opened_at, clicked_at")
+    .in("invoice_id", invoiceIds)
+    .order("sent_at", { ascending: false });
+
+  const latestByInvoice = new Map<string, "clicked" | "sent">();
+  for (const c of chases ?? []) {
+    const current = latestByInvoice.get(c.invoice_id);
+    if (c.clicked_at) latestByInvoice.set(c.invoice_id, "clicked");
+    else if (!current) latestByInvoice.set(c.invoice_id, "sent");
+  }
+
+  return invoiceList.map((inv) => ({
+    ...inv,
+    latest_chase_status: latestByInvoice.get(inv.id) ?? null,
+  }));
 }
 
 async function fetchAnalytics(

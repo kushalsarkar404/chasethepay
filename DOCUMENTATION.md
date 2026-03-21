@@ -39,6 +39,7 @@ AI-powered invoice chasing: connects to Stripe, pulls overdue invoices, and send
 | Auto-chase cron | `app/api/cron/auto-chase/route.ts` |
 | Stripe OAuth callback | `app/api/accounts/callback/route.ts` |
 | Stripe webhook | `app/api/webhooks/stripe/route.ts` |
+| Resend webhook (open/click) | `app/api/webhooks/resend/route.ts` |
 
 ---
 
@@ -55,6 +56,7 @@ AI-powered invoice chasing: connects to Stripe, pulls overdue invoices, and send
 | `SUPABASE_SERVICE_KEY` | Yes | Supabase service role key (server/cron) |
 | `RESEND_API_KEY` | Yes | Resend API key for sending emails |
 | `EMAIL_FROM` | No | From address for all chase emails (e.g. `hello@chasethepay.com`). Domain must be verified in Resend. Fallback: `noreply@resend.dev` |
+| `RESEND_WEBHOOK_SECRET` | No | Resend webhook signing secret (for open/click tracking; enables behavior-aware chase emails) |
 | `OPENAI_API_KEY` | Yes | OpenAI API key for chase message generation |
 | `CRON_SECRET` | Yes (prod) | Secret for cron endpoints; generate: `openssl rand -hex 32` |
 | `NEXT_PUBLIC_APP_URL` | Yes | App URL (e.g. `https://yoursite.com`) |
@@ -78,7 +80,7 @@ AI-powered invoice chasing: connects to Stripe, pulls overdue invoices, and send
 |-------|-------------|
 | `accounts` | Stripe Connect linked accounts (`user_id`, `stripe_account_id`) |
 | `invoices` | Synced Stripe invoices; `status`: open, paid, void |
-| `chases` | Email chase log (`invoice_id`, `message`, `sent_at`, `status`) |
+| `chases` | Email chase log (`invoice_id`, `message`, `sent_at`, `status`, `opened_at`, `clicked_at` for behavior tracking) |
 | `settings` | Per-user config: `sender_name`, `ai_tone`, `chase_frequency`, `max_chases`, `plan`, `stripe_customer_id` (note: `from_email` column exists but is unused; all emails use `EMAIL_FROM`) |
 | `user_marketing` | Denormalized metrics: `chases_used_count`, `stripe_connected`, `is_paid`, `total_recovered_cents`, etc. |
 
@@ -105,6 +107,8 @@ Apply with `supabase db push` (or via dashboard). Order:
 10. `20260313000000_remove_test_plan_is_paid.sql`
 11. `20260314000000_chases_delete_policy.sql`
 12. `20260315000000_protect_settings_plan.sql`
+13. `20260316000000_add_reply_to_email.sql`
+14. `20260317000000_chase_open_click_tracking.sql`
 
 ---
 
@@ -164,7 +168,8 @@ Apply with `supabase db push` (or via dashboard). Order:
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/webhooks/stripe` | Handles `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`. Enable "Events on Connected accounts" for `invoice.paid` (merchant invoices). |
-| POST | `/api/webhooks/email` | Resend webhook (optional) |
+| POST | `/api/webhooks/resend` | Resend open/click webhook. Enables behavior-aware chase emails. Configure in Resend → Webhooks; events: `email.opened`, `email.clicked`. Enable open/click tracking on your domain. |
+| POST | `/api/webhooks/email` | Placeholder (legacy) |
 
 ### Marketing & Analytics
 
@@ -251,6 +256,7 @@ Apply with `supabase db push` (or via dashboard). Order:
 - **From address:** Always `EMAIL_FROM` env var (e.g. `hello@chasethepay.com`). Domain must be verified in Resend.
 - **Display name:** User's `sender_name` from settings. Format: `"Acme Corp" <hello@chasethepay.com>`
 - Users cannot set a custom from email; this avoids Resend verification issues for per-user domains.
+- **Behavior-aware emails:** When Resend open/click tracking and the webhook are configured, chase emails adapt based on the recipient's behavior: e.g. "We noticed you opened our last reminder—here's the pay link" or "You clicked the pay link but didn't complete. Here it is again."
 
 ---
 

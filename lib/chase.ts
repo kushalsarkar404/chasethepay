@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStripe } from "@/lib/stripe";
 import { getResend, sendChaseEmail } from "@/lib/email";
 import { generateChaseMessage } from "@/lib/openai";
-import { subDays, subMinutes } from "date-fns";
+import { format, subDays, subMinutes } from "date-fns";
 
 const FREE_CHASES_PER_MONTH = 10;
 
@@ -84,21 +84,34 @@ export async function executeChase(
   const tone = (settings?.ai_tone ?? "friendly") as "friendly" | "professional" | "firm";
   const chaseNumber = (invoice.chase_count ?? 0) + 1;
   const autoTone = chaseNumber >= 5 ? "firm" : chaseNumber >= 3 ? "professional" : tone;
-  const daysOverdue = Math.max(
-    1,
-    Math.floor((Date.now() - new Date(invoice.due_date).getTime()) / (1000 * 60 * 60 * 24))
-  );
+  const dueDate = new Date(invoice.due_date);
+  const dueDateFormatted = format(dueDate, "MMMM d, yyyy");
   const businessName = settings?.sender_name ?? "Your business";
+
+  // Behavior from previous chase (opened but not clicked vs clicked pay link)
+  let lastChaseBehavior: "opened" | "clicked" | null = null;
+  if (chaseNumber > 1) {
+    const { data: lastChase } = await admin
+      .from("chases")
+      .select("opened_at, clicked_at")
+      .eq("invoice_id", invoiceId)
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .single();
+    if (lastChase?.clicked_at) lastChaseBehavior = "clicked";
+    else if (lastChase?.opened_at) lastChaseBehavior = "opened";
+  }
 
   let message: string;
   try {
     message = await generateChaseMessage({
       customerName: invoice.customer_name ?? "Customer",
       amountDollars: (invoice.amount_remaining ?? 0) / 100,
-      daysOverdue,
+      dueDateFormatted,
       tone: autoTone,
       businessName,
       chaseNumber,
+      lastChaseBehavior,
     });
   } catch (err) {
     console.error("[chase] OpenAI error:", err);
@@ -124,7 +137,7 @@ export async function executeChase(
     .replace(/>/g, "&gt;")
     .replace(/\n/g, "<br>");
   const payButtonHtml = paymentUrl
-    ? `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top: 32px;"><tr><td align="center"><a href="${paymentUrl}" style="display: inline-block; background: #10e898; color: #03160c; font-weight: 600; font-size: 16px; padding: 16px 40px; border-radius: 6px; text-decoration: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Pay Now</a></td></tr></table>`
+    ? `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top: 32px;"><tr><td align="center"><a href="${paymentUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; font-weight: 600; font-size: 16px; padding: 16px 40px; border-radius: 6px; text-decoration: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Pay Now</a></td></tr></table>`
     : "";
 
   const emailBody = `<!DOCTYPE html>
@@ -154,30 +167,33 @@ If you've already paid, please disregard this message.
   const toEmail = options?.emailOverride ?? invoice.customer_email;
 
   const replyTo = settings?.reply_to_email?.trim() || undefined;
+
+  // Insert chase first so we have an id for Resend tags (open/click webhook correlation)
+  const { data: chaseRow, error: chaseErr } = await admin
+    .from("chases")
+    .insert({ invoice_id: invoiceId, type: "email", message, status: "sent" })
+    .select("id")
+    .single();
+
+  if (chaseErr || !chaseRow) {
+    console.error("[chase] DB insert error:", chaseErr);
+    return { ok: false, error: "Failed to log chase" };
+  }
+
   try {
     await sendChaseEmail({
       to: toEmail,
       from: fromValue,
-      subject: `Reminder: Invoice overdue by ${daysOverdue} days`,
+      subject: `Reminder: Invoice due ${dueDateFormatted}`,
       body: emailBody,
       isHtml: true,
       replyTo,
+      tags: [{ name: "chase_id", value: chaseRow.id }],
     });
   } catch (err) {
     console.error("[chase] Resend error:", err);
+    await admin.from("chases").delete().eq("id", chaseRow.id);
     return { ok: false, error: err instanceof Error ? err.message : "Failed to send" };
-  }
-
-  const { error: chaseErr } = await admin.from("chases").insert({
-    invoice_id: invoiceId,
-    type: "email",
-    message,
-    status: "sent",
-  });
-
-  if (chaseErr) {
-    console.error("[chase] DB insert error:", chaseErr);
-    return { ok: false, error: "Failed to log chase" };
   }
 
   await admin

@@ -76,6 +76,8 @@ export interface Database {
           status: ChaseStatus;
           provider_message_id: string | null;
           reply: string | null;
+          opened_at: string | null;
+          clicked_at: string | null;
         };
         Insert: {
           id?: string;
@@ -86,6 +88,8 @@ export interface Database {
           status: ChaseStatus;
           provider_message_id?: string | null;
           reply?: string | null;
+          opened_at?: string | null;
+          clicked_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["chases"]["Insert"]>;
       };

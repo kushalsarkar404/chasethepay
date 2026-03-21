@@ -20,7 +20,11 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://chasethepay.com"),
   icons: {
-    icon: "/chasethepay-icon.svg",
+    icon: [
+      { url: "/chasethepay-icon.svg", type: "image/svg+xml" },
+      { url: "/chasethepay-icon.png", type: "image/png", sizes: "32x32" },
+    ],
+    apple: "/chasethepay-icon.png",
   },
   title: {
     default: "ChaseThePay — Automated Invoice Chasing",
@@ -53,7 +57,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#06080f",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
@@ -62,7 +66,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark scroll-smooth">
+    <html lang="en" className="scroll-smooth">
       <body
         className={`${bricolage.variable} ${dmSans.variable} font-sans antialiased`}
       >

@@ -32,6 +32,8 @@ export const AnalyticsEvents = {
   Chase_Sent: "Chase_Sent",
   Chase_Sent_Auto: "Chase_Sent_Auto",
   Chase_Failed: "Chase_Failed",
+  Chase_EmailOpened: "Chase_EmailOpened",
+  Chase_EmailClicked: "Chase_EmailClicked",
   Chase_FreeLimitReached: "Chase_FreeLimitReached",
   SentEmails_PageViewed: "SentEmails_PageViewed",
   SentEmails_Deleted: "SentEmails_Deleted",

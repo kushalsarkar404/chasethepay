@@ -13,6 +13,11 @@ import { ChaseButton } from "./chase-button";
 import { formatDistanceToNow } from "date-fns";
 import type { Invoice } from "@/types/database";
 import { cn } from "@/lib/utils";
+import { Mail, MousePointerClick } from "lucide-react";
+
+export type InvoiceWithChaseStatus = Invoice & {
+  latest_chase_status?: "sent" | "clicked" | null;
+};
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -42,8 +47,26 @@ function StatusBadge({ status, recoveredAt }: { status: string; recoveredAt: str
   );
 }
 
+function LatestActivityBadge({ status }: { status: "sent" | "clicked" | null }) {
+  if (!status) return <span className="text-[var(--muted)]">—</span>;
+  if (status === "clicked") {
+    return (
+      <Badge className="badge-clicked border-0 gap-1" title="Customer clicked the pay link but hasn't paid yet">
+        <MousePointerClick className="h-3 w-3" />
+        Clicked
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="badge-sent border-0 gap-1" title="Reminder sent">
+      <Mail className="h-3 w-3" />
+      Sent
+    </Badge>
+  );
+}
+
 interface InvoiceTableProps {
-  invoices: Invoice[];
+  invoices: InvoiceWithChaseStatus[];
   maxChases?: number;
   chaseFrequency?: string;
   onChaseSent?: (data?: { customerName: string }) => void;
@@ -74,6 +97,7 @@ export function InvoiceTable({
               <TableHead className="text-[var(--muted)]" title="When the invoice was due">Due date</TableHead>
               <TableHead className="text-[var(--muted)]" title="Number of reminder emails sent">Chases</TableHead>
               <TableHead className="text-[var(--muted)]" title="When the last reminder was sent">Last chased</TableHead>
+              <TableHead className="text-[var(--muted)]" title="Latest email engagement">Latest activity</TableHead>
               <TableHead className="text-[var(--muted)]" title="Invoice payment status">Status</TableHead>
               <TableHead className="text-[var(--muted)] w-24" />
             </TableRow>
@@ -86,6 +110,7 @@ export function InvoiceTable({
                 <TableCell><div className="skeleton h-4 w-24" /></TableCell>
                 <TableCell><div className="skeleton h-4 w-8" /></TableCell>
                 <TableCell><div className="skeleton h-4 w-20" /></TableCell>
+                <TableCell><div className="skeleton h-5 w-20 rounded" /></TableCell>
                 <TableCell><div className="skeleton h-5 w-16 rounded" /></TableCell>
                 <TableCell><div className="skeleton h-8 w-20 rounded" /></TableCell>
               </TableRow>
@@ -110,6 +135,7 @@ export function InvoiceTable({
               <TableHead className="text-[var(--muted)] font-medium" title="When the invoice was due">Due date</TableHead>
               <TableHead className="text-[var(--muted)] font-medium" title="Number of reminder emails sent">Chases</TableHead>
               <TableHead className="text-[var(--muted)] font-medium" title="When the last reminder was sent">Last chased</TableHead>
+              <TableHead className="text-[var(--muted)] font-medium" title="Latest email engagement (sent, clicked)">Latest activity</TableHead>
               <TableHead className="text-[var(--muted)] font-medium" title="Invoice payment status">Status</TableHead>
               <TableHead className="w-28" />
             </TableRow>
@@ -141,6 +167,9 @@ export function InvoiceTable({
                 {inv.last_chased_at
                   ? formatDistanceToNow(new Date(inv.last_chased_at), { addSuffix: true })
                   : "—"}
+              </TableCell>
+              <TableCell>
+                <LatestActivityBadge status={inv.latest_chase_status ?? null} />
               </TableCell>
               <TableCell>
                 <StatusBadge status={inv.status} recoveredAt={inv.recovered_at} />
