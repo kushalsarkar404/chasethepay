@@ -14,7 +14,9 @@ AI-powered invoice chasing: connects to Stripe, pulls overdue invoices, and send
 6. [Plans & Limits](#plans--limits)
 7. [Cron Jobs](#cron-jobs)
 8. [Webhooks](#webhooks)
-9. [Edge Cases & Test Scenarios](#edge-cases--test-scenarios)
+9. [Dashboard & UI](#dashboard--ui)
+10. [Edge Cases & Test Scenarios](#edge-cases--test-scenarios)
+11. [Production Deployment](#production-deployment)
 
 ---
 
@@ -25,7 +27,7 @@ AI-powered invoice chasing: connects to Stripe, pulls overdue invoices, and send
 - **Database:** Supabase (PostgreSQL)
 - **Payments:** Stripe Connect (OAuth), Stripe Checkout (Pro subscription)
 - **Email:** Resend
-- **AI:** OpenAI (chase message generation)
+- **AI:** OpenAI (chase message generation; prompts favor softer, understanding tone)
 - **Analytics:** Mixpanel (optional)
 
 ### Key Paths
@@ -39,7 +41,7 @@ AI-powered invoice chasing: connects to Stripe, pulls overdue invoices, and send
 | Auto-chase cron | `app/api/cron/auto-chase/route.ts` |
 | Stripe OAuth callback | `app/api/accounts/callback/route.ts` |
 | Stripe webhook | `app/api/webhooks/stripe/route.ts` |
-| Resend webhook (open/click) | `app/api/webhooks/resend/route.ts` |
+| Resend webhook (click) | `app/api/webhooks/resend/route.ts` |
 
 ---
 
@@ -56,7 +58,7 @@ AI-powered invoice chasing: connects to Stripe, pulls overdue invoices, and send
 | `SUPABASE_SERVICE_KEY` | Yes | Supabase service role key (server/cron) |
 | `RESEND_API_KEY` | Yes | Resend API key for sending emails |
 | `EMAIL_FROM` | No | From address for all chase emails (e.g. `hello@chasethepay.com`). Domain must be verified in Resend. Fallback: `noreply@resend.dev` |
-| `RESEND_WEBHOOK_SECRET` | No | Resend webhook signing secret (for open/click tracking; enables behavior-aware chase emails) |
+| `RESEND_WEBHOOK_SECRET` | Yes (for click tracking) | Resend webhook signing secret. **Required** for "Clicked" status on dashboard. Get from Resend → Webhooks → Add endpoint → Signing secret. For local dev, use ngrok and set webhook URL to `https://your-ngrok-url/api/webhooks/resend`. |
 | `OPENAI_API_KEY` | Yes | OpenAI API key for chase message generation |
 | `CRON_SECRET` | Yes (prod) | Secret for cron endpoints; generate: `openssl rand -hex 32` |
 | `NEXT_PUBLIC_APP_URL` | Yes | App URL (e.g. `https://yoursite.com`) |
@@ -80,7 +82,7 @@ AI-powered invoice chasing: connects to Stripe, pulls overdue invoices, and send
 |-------|-------------|
 | `accounts` | Stripe Connect linked accounts (`user_id`, `stripe_account_id`) |
 | `invoices` | Synced Stripe invoices; `status`: open, paid, void |
-| `chases` | Email chase log (`invoice_id`, `message`, `sent_at`, `status`, `opened_at`, `clicked_at` for behavior tracking) |
+| `chases` | Email chase log (`invoice_id`, `message`, `sent_at`, `status`, `clicked_at`). Open tracking disabled for deliverability. |
 | `settings` | Per-user config: `sender_name`, `ai_tone`, `chase_frequency`, `max_chases`, `plan`, `stripe_customer_id` (note: `from_email` column exists but is unused; all emails use `EMAIL_FROM`) |
 | `user_marketing` | Denormalized metrics: `chases_used_count`, `stripe_connected`, `is_paid`, `total_recovered_cents`, etc. |
 
@@ -140,7 +142,7 @@ Apply with `supabase db push` (or via dashboard). Order:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/invoices` | Yes | Lists open invoices for user's accounts |
+| GET | `/api/invoices` | Yes | Lists open invoices for user's accounts. Each invoice includes `latest_chase_status`: `"clicked"` if any chase was clicked, else `"sent"`, else `null`. |
 | POST | `/api/invoices/scan` | Yes | Manual scan: pulls overdue invoices from Stripe for connected accounts |
 | POST | `/api/invoices/sync` | Yes | Syncs invoice status (paid/void) from Stripe |
 
@@ -168,7 +170,7 @@ Apply with `supabase db push` (or via dashboard). Order:
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/webhooks/stripe` | Handles `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`. Enable "Events on Connected accounts" for `invoice.paid` (merchant invoices). |
-| POST | `/api/webhooks/resend` | Resend open/click webhook. Enables behavior-aware chase emails. Configure in Resend → Webhooks; events: `email.opened`, `email.clicked`. Enable open/click tracking on your domain. |
+| POST | `/api/webhooks/resend` | Resend click webhook. Enables "Clicked" status on dashboard and behavior-aware chase emails. Configure in Resend → Webhooks; events: `email.clicked`. Enable **click** tracking only (open tracking hurts deliverability). For local dev: use ngrok, add `https://your-ngrok.ngrok-free.app/api/webhooks/resend`. |
 | POST | `/api/webhooks/email` | Placeholder (legacy) |
 
 ### Marketing & Analytics
@@ -256,7 +258,7 @@ Apply with `supabase db push` (or via dashboard). Order:
 - **From address:** Always `EMAIL_FROM` env var (e.g. `hello@chasethepay.com`). Domain must be verified in Resend.
 - **Display name:** User's `sender_name` from settings. Format: `"Acme Corp" <hello@chasethepay.com>`
 - Users cannot set a custom from email; this avoids Resend verification issues for per-user domains.
-- **Behavior-aware emails:** When Resend open/click tracking and the webhook are configured, chase emails adapt based on the recipient's behavior: e.g. "We noticed you opened our last reminder—here's the pay link" or "You clicked the pay link but didn't complete. Here it is again."
+- **Behavior-aware emails:** When Resend **click** tracking and the webhook are configured, chase emails adapt based on the last chase: e.g. "If anything came up last time, no worries—here's the link again" when they clicked but didn't pay. Open tracking is disabled for deliverability.
 
 ---
 
@@ -299,6 +301,31 @@ Apply with `supabase db push` (or via dashboard). Order:
 
 ---
 
+## Dashboard & UI
+
+### Latest Activity Column
+
+The dashboard shows a "Latest activity" badge for each overdue invoice:
+- **Clicked** — Customer clicked the pay link (best engagement across all chases)
+- **Sent** — Reminder sent, no click yet
+- **—** — No chase sent
+
+**Logic:** "Clicked" is shown if *any* chase for that invoice was clicked, even if the most recent chase was only sent. This reflects the customer's highest engagement level.
+
+### Design System
+
+- **Theme:** Light background (`#ffffff`), dark text (`#111827`)
+- **Primary:** Blue (`#2563eb`) for buttons, links, accents
+- **Success:** Emerald (`#059669`) for paid/recovered
+- **Favicon:** `public/chasethepay-icon.svg` and `public/chasethepay-icon.png` (configured in `app/layout.tsx`)
+
+### Landing Page Assets
+
+- **Dashboard screenshot:** `public/chasethepay-dashboard.png` — replace to update the hero mockup (use `unoptimized` to avoid Next.js cache)
+- **Favicon:** `public/chasethepay-icon.svg`, `public/chasethepay-icon.png`
+
+---
+
 ## Edge Cases & Test Scenarios
 
 ### Auth & Onboarding
@@ -330,6 +357,7 @@ Apply with `supabase db push` (or via dashboard). Order:
 | 10 | Invoice `amount_remaining = 0` | Skipped in scan | Stripe invoice with 0 remaining |
 | 11 | Invoice due in future | Skipped in cron scan; included in manual if `DEV_INCLUDE_FUTURE_DUE=true` | Create future-due invoice |
 | 12 | Invoice paid in Stripe, open in DB | Scan sync updates to `paid` | Pay invoice in Stripe, run scan |
+| 12b | Invoice created under Stripe test clock | **Not returned** by normal `invoices.list` — Stripe omits test-clock resources. Use `DEV_INCLUDE_FUTURE_DUE=true` with future-due, or create invoice without test clock. | Create invoice on connected account with test clock |
 
 ### Chase Limits
 
@@ -407,13 +435,21 @@ curl -H "x-cron-secret: YOUR_CRON_SECRET" https://yoursite.com/api/cron/auto-cha
 
 ---
 
-## Vercel Deployment
+## Production Deployment
 
-1. Set all env vars in Vercel (including `EMAIL_FROM` for custom domain, e.g. `hello@chasethepay.com`).
-2. Add cron routes in `vercel.json`:
+### Vercel Checklist
+
+1. **Env vars:** Set all required vars (including `EMAIL_FROM`, `RESEND_WEBHOOK_SECRET` for click tracking).
+2. **Cron routes** in `vercel.json`:
    - `/api/cron/scan` — `*/15 * * * *`
    - `/api/cron/auto-chase` — `0 * * * *`
-3. Configure Stripe webhook to `https://your-domain.com/api/webhooks/stripe`. Enable "Connected and v2 accounts" for `invoice.paid`.
-4. Add Stripe Connect redirect URI: `https://your-domain.com/api/accounts/callback` (Stripe Dashboard → Settings → Connect → OAuth).
-5. Ensure `NEXT_PUBLIC_APP_URL` matches production URL.
-6. Verify your domain in Resend to send from `EMAIL_FROM`.
+3. **Stripe webhook:** `https://your-domain.com/api/webhooks/stripe`. Enable "Connected and v2 accounts" for `invoice.paid`.
+4. **Stripe Connect:** Add redirect URI `https://your-domain.com/api/accounts/callback`.
+5. **NEXT_PUBLIC_APP_URL:** Must match production URL.
+6. **Resend:** Verify domain for `EMAIL_FROM`. Enable **click tracking only** (open tracking hurts deliverability). Add webhook: `https://your-domain.com/api/webhooks/resend`, events: `email.clicked`, copy signing secret to `RESEND_WEBHOOK_SECRET`.
+7. **Favicon:** Ensure `public/chasethepay-icon.svg` and `public/chasethepay-icon.png` exist. No `app/favicon.ico` (uses metadata icons).
+8. **Dashboard screenshot:** Add `public/chasethepay-dashboard.png` for landing page hero.
+
+### Mixpanel (Optional)
+
+- `net::ERR_BLOCKED_BY_CLIENT` on `api-js.mixpanel.com` — typically an **ad blocker** or privacy extension blocking the request. Not a bug; analytics simply won't record for those users. Consider gracefully degrading when Mixpanel is blocked.

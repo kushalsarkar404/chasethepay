@@ -353,12 +353,13 @@ export default function Home() {
               </Button>
             </div>
 
-            <div className="landing-step-card relative overflow-hidden border-2 border-[var(--green)]/40 bg-gradient-to-b from-[var(--green)]/5 to-transparent p-6 sm:p-8">
-              <div className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-[var(--green)]/20 px-3 py-1 text-xs font-semibold text-[var(--green)]">
+            <div className="landing-step-card relative overflow-hidden border-2 border-[var(--green)]/40 bg-gradient-to-b from-[var(--green)]/5 to-transparent">
+              <div className="flex items-center justify-center gap-1.5 bg-[#F6BC26] py-2.5 text-sm font-semibold text-[#111827]">
                 <Zap className="h-3.5 w-3.5" />
                 Most popular
               </div>
-              <div className="flex items-start justify-between">
+              <div className="px-6 pb-6 sm:px-8 sm:pb-8">
+              <div className="flex items-start justify-between gap-6 pt-8 sm:pt-10">
                 <h3 className="font-display text-xl font-bold text-[var(--landing-text)] sm:text-2xl">
                   Pro
                 </h3>
@@ -393,6 +394,7 @@ export default function Home() {
               <p className="mt-3 text-center text-xs text-[var(--landing-muted)]">
                 Upgrade from your dashboard after signup
               </p>
+              </div>
             </div>
           </div>
         </div>
