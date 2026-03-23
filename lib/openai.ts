@@ -99,9 +99,9 @@ export async function generateChaseMessage({
 
   const behaviorContext =
     lastChaseBehavior === "opened"
-      ? "They saw our last email but didn't click. No pressure—just offer the link again in a helpful way."
+      ? "They saw our last email but didn't click. Mention the pay button below—no pressure."
       : lastChaseBehavior === "clicked"
-        ? "They clicked the pay link last time but didn't finish. Something may have come up. Offer the link again helpfully."
+        ? "They clicked the pay link last time but didn't finish. Something may have come up. Mention the pay button below."
         : "";
 
   const response = await client.chat.completions.create({
@@ -115,9 +115,9 @@ Rules:
 - Use the customer's name
 - State the amount and due date clearly
 - Sound like a normal person, not a debt collector—no guilt, pressure, or stern language
-- Offer the pay link in a helpful way, never demanding
-- Sign off with the exact Business name provided (e.g. "Thank you,\\nAcme Inc")
-- Use plain text with \\n for line breaks
+- Do NOT include any link, URL, or placeholder like [insert pay link]. A Pay Now button is added automatically below your message. Just write the friendly text—e.g. "here's a quick link below" or "you can pay with the button below" is fine.
+- Sign off with the exact Business name provided
+- Use actual line breaks between paragraphs (new lines)
 - Even on later reminders, stay kind and understanding—life happens`,
       },
       {

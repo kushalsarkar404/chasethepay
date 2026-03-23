@@ -135,9 +135,10 @@ export async function executeChase(
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
+    .replace(/\\n/g, "<br>")
     .replace(/\n/g, "<br>");
   const payButtonHtml = paymentUrl
-    ? `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top: 32px;"><tr><td align="center"><a href="${paymentUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; font-weight: 600; font-size: 16px; padding: 16px 40px; border-radius: 6px; text-decoration: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Pay Now</a></td></tr></table>`
+    ? `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top: 32px;"><tr><td align="center"><a href="${paymentUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; font-weight: 600; font-size: 16px; padding: 16px 40px; border-radius: 6px; text-decoration: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Pay Now</a><p style="margin: 8px 0 0; font-size: 11px; color: #9ca3af; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">via ChaseThePay</p></td></tr></table>`
     : "";
 
   const emailBody = `<!DOCTYPE html>
