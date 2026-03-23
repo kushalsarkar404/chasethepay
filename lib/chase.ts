@@ -157,9 +157,10 @@ export async function executeChase(
     .replace(/>/g, "&gt;")
     .replace(/\\n/g, "<br>")
     .replace(/\n/g, "<br>");
-  const payButtonHtml = paymentUrl
-    ? `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top: 32px;"><tr><td align="center"><a href="${paymentUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; font-weight: 600; font-size: 16px; padding: 16px 40px; border-radius: 6px; text-decoration: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Pay Now</a><p style="margin: 8px 0 0; font-size: 11px; color: #9ca3af; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">via ChaseThePay</p></td></tr></table>`
-    : "";
+
+  const payButtonBlock =
+    paymentUrl &&
+    `<tr><td style="padding: 0 40px 24px; font-size: 16px;"><table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr><td align="center"><a href="${paymentUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; font-weight: 600; font-size: 16px; padding: 16px 40px; border-radius: 6px; text-decoration: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Pay Now</a><p style="margin: 8px 0 0; font-size: 11px; color: #9ca3af;">via ChaseThePay</p></td></tr></table></td></tr>`;
 
   const emailBody = `<!DOCTYPE html>
 <html>
@@ -168,9 +169,9 @@ export async function executeChase(
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #f4f4f5; padding: 40px 20px;">
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-<tr><td style="padding: 40px 40px 24px; font-size: 16px; line-height: 1.6; color: #374151;">
-${messageHtml}${payButtonHtml}
-</td></tr>
+<tr><td style="padding: 40px 40px 16px; font-size: 16px; line-height: 1.6; color: #374151;">
+${messageHtml}
+</td></tr>${payButtonBlock || ""}
 <tr><td style="padding: 24px 40px 40px; font-size: 12px; line-height: 1.5; color: #9ca3af; border-top: 1px solid #e5e7eb;">
 If you've already paid, please disregard this message.
 </td></tr>
