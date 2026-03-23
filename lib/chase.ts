@@ -23,7 +23,7 @@ export async function executeChase(
 ): Promise<ChaseResult> {
   const { data: invoice, error: invErr } = await admin
     .from("invoices")
-    .select("id, account_id, stripe_invoice_id, customer_name, customer_email, amount_remaining, due_date, chase_count, last_chased_at, status")
+    .select("id, account_id, stripe_invoice_id, customer_name, customer_email, amount_remaining, due_date, chase_count, last_chased_at, status, payment_url")
     .eq("id", invoiceId)
     .single();
 
@@ -118,16 +118,36 @@ export async function executeChase(
     return { ok: false, error: "Failed to generate message" };
   }
 
-  let paymentUrl: string | null = null;
-  if (invoice.stripe_invoice_id && account.stripe_account_id) {
+  let paymentUrl: string | null =
+    typeof invoice.payment_url === "string" && invoice.payment_url
+      ? invoice.payment_url
+      : null;
+
+  if (!paymentUrl && invoice.stripe_invoice_id && account.stripe_account_id) {
     try {
       const stripe = getStripe();
-      const stripeInv = await stripe.invoices.retrieve(invoice.stripe_invoice_id, {
+      let stripeInv = await stripe.invoices.retrieve(invoice.stripe_invoice_id, {
         stripeAccount: account.stripe_account_id,
       });
       paymentUrl = stripeInv.hosted_invoice_url ?? null;
-    } catch {
-      /* skip */
+
+      if (!paymentUrl && stripeInv.status === "draft") {
+        await stripe.invoices.finalizeInvoice(invoice.stripe_invoice_id, {
+          stripeAccount: account.stripe_account_id,
+        });
+        stripeInv = await stripe.invoices.retrieve(invoice.stripe_invoice_id, {
+          stripeAccount: account.stripe_account_id,
+        });
+        paymentUrl = stripeInv.hosted_invoice_url ?? null;
+      }
+
+      if (paymentUrl) {
+        await admin.from("invoices").update({ payment_url: paymentUrl }).eq("id", invoiceId);
+      } else {
+        console.warn("[chase] No payment URL for invoice", invoiceId, "stripe:", invoice.stripe_invoice_id);
+      }
+    } catch (err) {
+      console.warn("[chase] Failed to fetch payment URL:", err instanceof Error ? err.message : err);
     }
   }
 

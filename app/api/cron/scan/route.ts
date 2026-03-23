@@ -53,6 +53,10 @@ export async function GET() {
           typeof inv.customer_name === "string"
             ? inv.customer_name
             : (cust && "name" in cust ? cust.name : null) ?? null;
+        const paymentUrl =
+          typeof (inv as { hosted_invoice_url?: string | null }).hosted_invoice_url === "string"
+            ? (inv as { hosted_invoice_url: string }).hosted_invoice_url
+            : null;
 
         await admin.from("invoices").upsert(
           {
@@ -64,6 +68,7 @@ export async function GET() {
             amount_remaining: inv.amount_remaining,
             customer_name: customerName,
             customer_email: customerEmail,
+            payment_url: paymentUrl,
           },
           { onConflict: "stripe_invoice_id", ignoreDuplicates: false }
         );
