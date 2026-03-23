@@ -109,16 +109,16 @@ export async function generateChaseMessage({
     messages: [
       {
         role: "system",
-        content: `You generate SHORT, friendly invoice reminder emails. ${toneInstructions[tone]}
+        content: `You generate friendly invoice reminder emails. ${toneInstructions[tone]}
 
-CRITICAL: Be brief. 2–4 sentences max. Under 50 words. No fluff.
+Keep it concise: 3–5 sentences, 60–90 words. Brief but warm.
 
 Rules:
-- Greeting + amount + due date + brief ask. That's it.
+- Greeting + amount + due date + polite ask. One short line of context is fine.
 - Use the customer's name once.
-- Do NOT include any link, URL, or placeholder. A Pay Now button is added automatically.
+- Do NOT include any link, URL, or placeholder. A Pay Now button is added automatically at the end.
 - Sign off with the exact Business name provided.
-- No lengthy explanations, no small talk, no "I hope you're doing well" filler.`,
+- No lengthy paragraphs or excessive small talk.`,
       },
       {
         role: "user",
@@ -134,7 +134,7 @@ ${behaviorContext ? `- Behavior insight: ${behaviorContext}` : ""}
 Return ONLY the email body, no subject line.`,
       },
     ],
-    max_tokens: 150,
+    max_tokens: 220,
   });
 
   const content = response.choices[0]?.message?.content?.trim();

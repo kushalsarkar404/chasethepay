@@ -124,31 +124,41 @@ export async function executeChase(
       : null;
 
   if (!paymentUrl && invoice.stripe_invoice_id && account.stripe_account_id) {
+    const stripe = getStripe();
+    // Try with connected account first
     try {
-      const stripe = getStripe();
       const stripeInv = await stripe.invoices.retrieve(invoice.stripe_invoice_id, {
         stripeAccount: account.stripe_account_id,
       });
-      paymentUrl = stripeInv.hosted_invoice_url ?? null;
-      if (paymentUrl) {
-        await admin.from("invoices").update({ payment_url: paymentUrl }).eq("id", invoiceId);
-      } else {
-        console.warn(
-          "[chase] hosted_invoice_url is null for invoice",
-          invoice.stripe_invoice_id,
-          "status:",
-          stripeInv.status,
-          "- Enable 'Include a link to a payment page' in Stripe Dashboard → Settings → Invoices"
-        );
+      paymentUrl = stripeInv.hosted_invoice_url ?? stripeInv.invoice_pdf ?? null;
+      if (stripeInv.hosted_invoice_url) {
+        await admin.from("invoices").update({ payment_url: stripeInv.hosted_invoice_url }).eq("id", invoiceId);
       }
-    } catch (err) {
-      console.error("[chase] Stripe invoice fetch failed:", err);
+    } catch {
+      // Fallback: try without stripeAccount (invoices on platform)
+      try {
+        const stripeInv = await stripe.invoices.retrieve(invoice.stripe_invoice_id);
+        paymentUrl = stripeInv.hosted_invoice_url ?? stripeInv.invoice_pdf ?? null;
+        if (stripeInv.hosted_invoice_url) {
+          await admin.from("invoices").update({ payment_url: stripeInv.hosted_invoice_url }).eq("id", invoiceId);
+        }
+      } catch (err) {
+        console.error("[chase] Stripe invoice fetch failed:", err);
+      }
     }
   }
 
-  if (!paymentUrl) {
-    console.warn("[chase] No payment URL - Pay Now button will be omitted. invoiceId:", invoiceId);
-  }
+  const payButtonLabel = paymentUrl
+    ? paymentUrl.includes("invoice.stripe.com")
+      ? "Pay Now"
+      : "View Invoice"
+    : null;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://chasethepay.com";
+  const payLink =
+    paymentUrl && payButtonLabel
+      ? `${appUrl}/pay?u=${Buffer.from(paymentUrl, "utf-8").toString("base64url")}`
+      : null;
 
   const messageHtml = message
     .replace(/&/g, "&amp;")
@@ -158,8 +168,9 @@ export async function executeChase(
     .replace(/\n/g, "<br>");
 
   const payButtonBlock =
-    paymentUrl &&
-    `<tr><td style="padding: 24px 40px 16px; font-size: 16px;"><table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr><td align="center"><a href="${paymentUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; font-weight: 600; font-size: 16px; padding: 16px 40px; border-radius: 6px; text-decoration: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Pay Now</a><p style="margin: 8px 0 0; font-size: 11px; color: #9ca3af;">via ChaseThePay</p></td></tr></table></td></tr>`;
+    payLink &&
+    payButtonLabel &&
+    `<tr><td style="padding: 0 40px 24px; font-size: 16px;"><table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr><td align="center"><a href="${payLink}" style="display: inline-block; background: #2563eb; color: #ffffff; font-weight: 600; font-size: 16px; padding: 16px 40px; border-radius: 6px; text-decoration: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">${payButtonLabel}</a></td></tr></table></td></tr>`;
 
   const emailBody = `<!DOCTYPE html>
 <html>
@@ -168,9 +179,10 @@ export async function executeChase(
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #f4f4f5; padding: 40px 20px;">
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-${payButtonBlock || ""}<tr><td style="padding: 0 40px 24px; font-size: 16px; line-height: 1.6; color: #374151;">
+<tr><td style="padding: 40px 40px 16px; font-size: 16px; line-height: 1.6; color: #374151;">
 ${messageHtml}
 </td></tr>
+${payButtonBlock || ""}
 <tr><td style="padding: 24px 40px 40px; font-size: 12px; line-height: 1.5; color: #9ca3af; border-top: 1px solid #e5e7eb;">
 If you've already paid, please disregard this message.
 </td></tr>
