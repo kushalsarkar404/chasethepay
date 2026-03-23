@@ -92,16 +92,16 @@ export async function generateChaseMessage({
 
   const chaseContext =
     chaseNumber === 1
-      ? "First reminder. Keep it light and friendly."
+      ? "First reminder."
       : chaseNumber === 2
-        ? "Second reminder. Gentle follow-up—life gets busy."
-        : `Reminder #${chaseNumber}. Stay polite and understanding. They may be dealing with other things.`;
+        ? "Second reminder."
+        : `Reminder #${chaseNumber}.`;
 
   const behaviorContext =
     lastChaseBehavior === "opened"
-      ? "They saw our last email but didn't click. Mention the pay button below—no pressure."
+      ? "They saw the last email but didn't click. Keep it brief."
       : lastChaseBehavior === "clicked"
-        ? "They clicked the pay link last time but didn't finish. Something may have come up. Mention the pay button below."
+        ? "They clicked but didn't pay. Brief follow-up."
         : "";
 
   const response = await client.chat.completions.create({
@@ -109,16 +109,16 @@ export async function generateChaseMessage({
     messages: [
       {
         role: "system",
-        content: `You generate friendly invoice reminder emails. ${toneInstructions[tone]}
+        content: `You generate SHORT, friendly invoice reminder emails. ${toneInstructions[tone]}
+
+CRITICAL: Be brief. 2–4 sentences max. Under 50 words. No fluff.
+
 Rules:
-- Keep it short and natural (under 150 words)
-- Use the customer's name
-- State the amount and due date clearly
-- Sound like a normal person, not a debt collector—no guilt, pressure, or stern language
-- Do NOT include any link, URL, or placeholder like [insert pay link]. A Pay Now button is added automatically below your message. Just write the friendly text—e.g. "here's a quick link below" or "you can pay with the button below" is fine.
-- Sign off with the exact Business name provided
-- Use actual line breaks between paragraphs (new lines)
-- Even on later reminders, stay kind and understanding—life happens`,
+- Greeting + amount + due date + brief ask. That's it.
+- Use the customer's name once.
+- Do NOT include any link, URL, or placeholder. A Pay Now button is added automatically.
+- Sign off with the exact Business name provided.
+- No lengthy explanations, no small talk, no "I hope you're doing well" filler.`,
       },
       {
         role: "user",
@@ -134,7 +134,7 @@ ${behaviorContext ? `- Behavior insight: ${behaviorContext}` : ""}
 Return ONLY the email body, no subject line.`,
       },
     ],
-    max_tokens: 300,
+    max_tokens: 150,
   });
 
   const content = response.choices[0]?.message?.content?.trim();
